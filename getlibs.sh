@@ -9,6 +9,12 @@ if [ $# -eq 0 ]; then
   kernel=$(uname --kernel-name)
   targets=${machine,,}-${kernel,,}
   echo "Expects targets as arguments, for example: $targets"
+  echo "The following are supported:"
+  for file in "$PROJECT_DIR/cmake/toolchain"/*.cmake ; do
+      cmake=$(basename "$file")
+      toolchain=${cmake%.cmake}
+      echo -e "\t${toolchain}"
+  done
   exit 1
 else
   targets="$@"
@@ -61,13 +67,13 @@ for target in $targets ; do
 
     # UUtils various low level Uppaal utilities
     NAME=UUtils
-    VERSION=2.0.5
+    VERSION=2.0.7
     LIBRARY="${NAME}-${VERSION}"
     if [ -r "$PREFIX/include/base/Enumerator.h" ]; then
       echo "$LIBRARY is already installed in $PREFIX"
     else
       ARCHIVE="${LIBRARY}.tar.gz"
-      SHA256=e213f936af73344de071a7794233a328028045c08df58ac9c637a0e6a2ad7b3f
+      SHA256=52a823768398707eee42392182c320141662e74e6bd8eaac1a0eca22d8a27bcd
       SOURCE="${SOURCES}/${LIBRARY}"
       BUILD="${PREFIX}/build-${LIBRARY}"
       pushd "$SOURCES"

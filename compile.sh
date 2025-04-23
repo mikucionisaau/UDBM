@@ -13,8 +13,14 @@ for target in $targets ; do
     unset BUILD_EXTRA
     unset CMAKE_BUILD_TYPE
     case $target in
+        x86_64-linux-gcc14*)
+            PLATFORM=x86_64-linux-gcc14
+            ;;
         linux64*|x86_64-linux*)
             PLATFORM=x86_64-linux
+            ;;
+        i686-linux-gcc14*)
+            PLATFORM=i686-linux-gcc14
             ;;
         linux32*|i686-linux*)
             PLATFORM=i686-linux
@@ -24,6 +30,9 @@ for target in $targets ; do
             ;;
         win32*|i686-w64-mingw32*)
             PLATFORM=i686-w64-mingw32
+            ;;
+        x86_64-darwin-brew-gcc14*)
+            PLATFORM=x86_64-darwin-brew-gcc14
             ;;
         macos*|x86_64-darwin*)
             PLATFORM=x86_64-darwin
