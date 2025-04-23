@@ -94,7 +94,7 @@ for target in $targets ; do
     echo "  CMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE"
     echo "  CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH"
     echo "  CMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE"
-    cmake -S "$PROJECT_DIR" -B "$BUILD_DIR" $BUILD_EXTRA
+    cmake -S "$PROJECT_DIR" -B "$BUILD_DIR" -DUDBM_CLANG_TIDY=OFF $BUILD_EXTRA
     cmake --build "$BUILD_DIR" --config $CMAKE_BUILD_TYPE
     (cd "$BUILD_DIR" ; ctest -C $CMAKE_BUILD_TYPE --output-on-failure)
 done

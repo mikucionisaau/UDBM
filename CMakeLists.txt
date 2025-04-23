@@ -5,6 +5,7 @@ include(GNUInstallDirs)
 
 option(UDBM_WITH_TESTS "UDBM Unit tests" ON)
 option(UDBM_STATIC "Static linking" OFF)
+option(UDBM_CLANG_TIDY "Linting with clang-tidy" ON)
 option(FIND_FATAL "Stop upon find_package errors" OFF)
 
 cmake_policy(SET CMP0048 NEW) # project() command manages VERSION variables
@@ -18,7 +19,9 @@ set(ENABLE_STORE_MINGRAPH 1)
 CONFIGURE_FILE("src/config.h.cmake" "include/dbm/config.h")
 
 include(cmake/sanitizer.cmake)
-include(cmake/clang-tidy.cmake)
+if (UDBM_CLANG_TIDY)
+  include(cmake/clang-tidy.cmake)
+endif(UDBM_CLANG_TIDY)
 if (UDBM_WITH_TESTS)
     include(cmake/doctest.cmake)
 endif (UDBM_WITH_TESTS)
