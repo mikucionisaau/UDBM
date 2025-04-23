@@ -24,6 +24,7 @@
 
 #include <algorithm>  // find_if
 #include <forward_list>
+#include <iterator>  // front_inserter
 #include <sstream>
 #include <cmath>
 
