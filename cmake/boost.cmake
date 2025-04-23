@@ -10,9 +10,9 @@ set(Boost_USE_STATIC_RUNTIME ON) # Mac insists on ON for boost_program_options
 set(Boost_VERSION 1.86.0)
 
 if (BOOST_INCLUDE_LIBRARIES)
-  find_package(Boost ${Boost_VERSION} COMPONENTS ${BOOST_INCLUDE_LIBRARIES} QUIET PATHS /usr)
+  find_package(Boost ${Boost_VERSION} COMPONENTS ${BOOST_INCLUDE_LIBRARIES} QUIET)
 else(BOOST_INCLUDE_LIBRARIES)
-  find_package(Boost ${Boost_VERSION} QUIET PATHS /usr)
+  find_package(Boost ${Boost_VERSION} QUIET)
 endif(BOOST_INCLUDE_LIBRARIES)
 
 if (Boost_FOUND)
@@ -27,8 +27,8 @@ else(Boost_FOUND)
     Boost
     DOWNLOAD_EXTRACT_TIMESTAMP ON
     #FIND_PACKAGE_ARGS NAMES Boost COMPONENTS ${BOOST_INCLUDE_LIBRARIES}
-    URL https://github.com/boostorg/boost/releases/download/boost-1.83.0/boost-1.83.0.tar.xz
-    URL_HASH SHA256=c5a0688e1f0c05f354bbd0b32244d36085d9ffc9f932e8a18983a9908096f614
+    URL https://github.com/boostorg/boost/releases/download/boost-1.88.0/boost-1.88.0-cmake.tar.xz
+    URL_HASH SHA256=f48b48390380cfb94a629872346e3a81370dc498896f16019ade727ab72eb1ec
     # GIT_REPOSITORY https://github.com/boostorg/boost.git
     # GIT_TAG boost-${Boost_VERSION}
     # GIT_SHALLOW TRUE # get only the last commit version
@@ -38,11 +38,11 @@ else(Boost_FOUND)
     USES_TERMINAL_BUILD ON
     USES_TERMINAL_INSTALL ON
     )
-  FetchContent_GetProperties(Boost)
+  FetchContent_MakeAvailable(Boost)
   if (Boost_POPULATED)
     message(STATUS "Found populated Boost (${BOOST_INCLUDE_LIBRARIES}): ${boost_SOURCE_DIR}")
   else (Boost_POPULATED)
-    FetchContent_Populate(Boost)
+    FetchContent_MakeAvailable(Boost)
     add_subdirectory(${boost_SOURCE_DIR} ${boost_BINARY_DIR} EXCLUDE_FROM_ALL)
     # workaround for cmake complaint that boost is not among exports:
     install(TARGETS boost_headers boost_math boost_assert boost_concept_check boost_config boost_core
