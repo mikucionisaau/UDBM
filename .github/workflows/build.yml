@@ -76,7 +76,7 @@ jobs:
 #          BUILD=build-darwin-$CMAKE_BUILD_TYPE
 #          cmake -B "$BUILD" -DASAN=${{ matrix.sanitizers }} -DUBSAN=${{ matrix.sanitizers }}
 #          cmake --build "$BUILD" --config $CMAKE_BUILD_TYPE
-#          ctest --test-dir "$BUILD" -C $CMAKE_BUILD_TYPE)
+#          ctest --test-dir "$BUILD" -C $CMAKE_BUILD_TYPE
       - name: Get dependencies
         run: CMAKE_BUILD_TYPE=Release ./getlibs.sh darwin
       - name: Build with getlibs
@@ -84,7 +84,7 @@ jobs:
           BUILD=build-darwin-libs-$CMAKE_BUILD_TYPE
           cmake -B "$BUILD" -DCMAKE_PREFIX_PATH="${{ github.workspace }}/local/darwin" -DASAN=${{ matrix.sanitizers }} -DUBSAN=${{ matrix.sanitizers }}
           cmake --build "$BUILD" --config $CMAKE_BUILD_TYPE
-          ctest --test-dir "$BUILD" -C $CMAKE_BUILD_TYPE)
+          ctest --test-dir "$BUILD" -C $CMAKE_BUILD_TYPE
   build-windows:
     runs-on: windows-latest
     env:
