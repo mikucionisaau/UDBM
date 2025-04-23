@@ -19,7 +19,7 @@
 #include "dbm/ClockAccessor.h"
 
 #include <iosfwd>
-#include <limits>
+#include <algorithm>
 #include <vector>
 #include <cassert>
 
