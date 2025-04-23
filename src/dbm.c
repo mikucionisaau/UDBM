@@ -31,11 +31,11 @@
 
 /* More readable code with this */
 
-#define DBM(I, J)  dbm[(I)*dim + (J)]
-#define SRC(I, J)  src[(I)*dim + (J)]
-#define DST(I, J)  dst[(I)*dim + (J)]
-#define DBM1(I, J) dbm1[(I)*dim + (J)]
-#define DBM2(I, J) dbm2[(I)*dim + (J)]
+#define DBM(I, J)  dbm[(I) * dim + (J)]
+#define SRC(I, J)  src[(I) * dim + (J)]
+#define DST(I, J)  dst[(I) * dim + (J)]
+#define DBM1(I, J) dbm1[(I) * dim + (J)]
+#define DBM2(I, J) dbm2[(I) * dim + (J)]
 
 /** For debugging */
 

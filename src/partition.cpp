@@ -99,7 +99,7 @@ namespace dbm
 
         all.nil();
         // allocate as char*, deallocate as char*
-        delete[]((char*)this);
+        delete[] ((char*)this);
     }
 
     fed_t partition_t::fedtable_t::get(uint32_t id) const
@@ -194,7 +194,7 @@ namespace dbm
             }
 
         all.nil();
-        delete[]((char*)this);
+        delete[] ((char*)this);
         return ftab;
     }
 

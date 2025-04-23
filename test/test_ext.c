@@ -29,8 +29,8 @@
 
 /* make the code more readable
  */
-#define DBM1(I, J) dbm1[(I)*dim1 + (J)]
-#define DBM2(I, J) dbm2[(I)*dim2 + (J)]
+#define DBM1(I, J) dbm1[(I) * dim1 + (J)]
+#define DBM2(I, J) dbm2[(I) * dim2 + (J)]
 
 /* progress spinning bar
  */

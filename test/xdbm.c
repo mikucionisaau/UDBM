@@ -11,7 +11,7 @@
 #define WIDTH     800
 #define HEIGHT    800
 #define MARGIN    10
-#define DBM(I, J) dbm[(I)*dim + (J)]
+#define DBM(I, J) dbm[(I) * dim + (J)]
 
 typedef struct
 {

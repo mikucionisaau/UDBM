@@ -25,10 +25,10 @@
 #include <stdlib.h>
 
 /* For easy reading */
-#define DBM(I, J) dbm[(I)*dim + (J)]
-#define SRC(I, J) src[(I)*dim + (J)]
-#define DST(I, J) dst[(I)*dim + (J)]
-#define ARG(I, J) arg[(I)*dim + (J)]
+#define DBM(I, J) dbm[(I) * dim + (J)]
+#define SRC(I, J) src[(I) * dim + (J)]
+#define DST(I, J) dst[(I) * dim + (J)]
+#define ARG(I, J) arg[(I) * dim + (J)]
 
 /* For debugging */
 

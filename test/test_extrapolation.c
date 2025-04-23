@@ -58,7 +58,7 @@
 #define PROGRESS() debug_spin(stderr)
 
 /* For more readable code */
-#define DBM(I, J) dbm[(I)*dim + (J)]
+#define DBM(I, J) dbm[(I) * dim + (J)]
 
 /* Alternative simple implementations */
 

@@ -49,7 +49,7 @@ public:
     {
         // cleanup properly even if it is just one instance
         for (uint32_t i = 0; i < MINGRAPH_CACHE_SIZE; ++i) {
-            delete[](uint32_t*) entries[i];
+            delete[] (uint32_t*)entries[i];
         }
     }
 
@@ -86,7 +86,7 @@ void mingraph_putCachedResult(const raw_t* dbm, cindex_t dim, const uint32_t* bi
     uint32_t dim2 = dim * dim;
     cache_t* entry = cache.get(hashValue);
     if (!entry || entry->dim != dim) {
-        delete[](uint32_t*) entry;
+        delete[] (uint32_t*)entry;
         entry = (cache_t*)new uint32_t[intsizeof(cache_t) + dim2 + bits2intsize(dim2)];
     }
     entry->hashValue = hashValue;

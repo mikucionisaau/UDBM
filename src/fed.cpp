@@ -38,7 +38,7 @@
 #define IMPROVED_MERGE
 
 // Shouldn't be necessary in practice.
-//#define PARTITION_FIXPOINT
+// #define PARTITION_FIXPOINT
 
 // Variants for subtractions:
 // - desactive disjoint: #define NDISJOINT_SUBTRACTION
@@ -48,11 +48,11 @@
 //         x=2 => reordering of constraints
 //         x=3 => reordering of constraints + skip intersecting facettes
 
-//#define NDISJOINT_SUBTRACTION
-//#define SUBTRACTION_ALGORITHM 0
-//#define SUBTRACTION_ALGORITHM 1
-//#define SUBTRACTION_ALGORITHM 2
-//#define SUBTRACTION_ALGORITHM 3
+// #define NDISJOINT_SUBTRACTION
+// #define SUBTRACTION_ALGORITHM 0
+// #define SUBTRACTION_ALGORITHM 1
+// #define SUBTRACTION_ALGORITHM 2
+// #define SUBTRACTION_ALGORITHM 3
 
 // Default subtraction.
 #ifndef SUBTRACTION_ALGORITHM

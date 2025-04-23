@@ -93,7 +93,7 @@ raw_t hull[16];
 #define WIDTH     800
 #define HEIGHT    800
 #define MARGIN    12
-#define DBM(I, J) dbm[(I)*dim + (J)]
+#define DBM(I, J) dbm[(I) * dim + (J)]
 
 typedef struct
 {
