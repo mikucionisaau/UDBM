@@ -31,6 +31,12 @@ for target in $targets ; do
         win32*|i686-w64-mingw32*)
             PLATFORM=i686-w64-mingw32
             ;;
+        darwin-brew-gcc14*)
+            PLATFORM=darwin-brew-gcc14
+            ;;
+        darwin*)
+            PLATFORM=darwin
+            ;;
         x86_64-darwin-brew-gcc14*)
             PLATFORM=x86_64-darwin-brew-gcc14
             ;;
@@ -45,7 +51,7 @@ for target in $targets ; do
     BUILD_DIR="build-$PLATFORM"
 
     case $target in
-        *-lib*)
+        *-libs*)
             CMAKE_BUILD_TYPE=Release ./getlibs.sh $PLATFORM
             BUILD_EXTRA="$BUILD_EXTRA -DFIND_FATAL=ON"
             export CMAKE_PREFIX_PATH="$PROJECT_DIR/local/$PLATFORM"

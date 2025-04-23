@@ -1,3 +1,5 @@
+set(BOOST_INCLUDE_LIBRARIES math)
+include(cmake/boost.cmake)
 find_package(UUtils 2.0.5 COMPONENTS base hash debug QUIET)
 
 if (UUtils_FOUND)
