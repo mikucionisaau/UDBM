@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(UDBM VERSION 2.0.14 LANGUAGES CXX C)
+project(UDBM VERSION 2.0.15 LANGUAGES CXX C)
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
@@ -8,7 +8,7 @@ option(UDBM_STATIC "Static linking" OFF)
 option(FIND_FATAL "Stop upon find_package errors" OFF)
 
 cmake_policy(SET CMP0048 NEW) # project() command manages VERSION variables
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
