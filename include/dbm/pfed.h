@@ -39,8 +39,8 @@ namespace dbm
     class pdbm_t
     {
     protected:
-        PDBM pdbm;
-        cindex_t dim;
+        PDBMPtr pdbm{nullptr};
+        cindex_t dim{0};
 
     public:
         /**
@@ -48,7 +48,7 @@ namespace dbm
          * dimension zero.  This must not be assigned to another
          * pdbm_t.
          */
-        pdbm_t();
+        pdbm_t() = default;
 
         /**
          * Allocates a new empty priced DBM of the given
@@ -56,41 +56,24 @@ namespace dbm
          *
          * @see pdbm_allocate()
          */
-        explicit pdbm_t(cindex_t);
+        explicit pdbm_t(cindex_t dim): dim{dim} {}
 
         /**
          * Makes a reference to the given priced DBM.
          */
-        pdbm_t(PDBM pdbm, cindex_t dim);
-
-        /**
-         * Copy constructor. This will increment the reference count
-         * to the priced DBM given.
-         */
-        pdbm_t(const pdbm_t&);
-
-        /**
-         * Destructor. Reduces the reference count to the priced
-         * DBM. This in turn may result in its deallocation.
-         */
-        ~pdbm_t();
-
-        /**
-         * Assignment operator.
-         */
-        pdbm_t& operator=(const pdbm_t&);
+        pdbm_t(PDBMPtr pdbm, cindex_t dim): pdbm{std::move(pdbm)}, dim{dim} {}
 
         /**
          * Type conversion to PDBM. Notice that a reference to the
          * PDBM is provided, thus the pdbm_t object can even be used
          * with pdbm_X() functions modifying the priced DBM.
          */
-        operator PDBM&() { return pdbm; }
+        operator PDBMPtr&() { return pdbm; }
 
         /**
          * Type conversion to constant PDBM.
          */
-        operator PDBM() const { return pdbm; }
+        operator PDBMCPtr() const { return pdbm; }
 
         /**
          * Returns a hash value for the priced DBM.
@@ -134,29 +117,9 @@ namespace dbm
         static pdbm_t readFromMinDBM(cindex_t dimension, const int32_t*);
     };
 
-    inline pdbm_t::pdbm_t(): pdbm(nullptr), dim(0) {}
-
-    inline pdbm_t::pdbm_t(cindex_t dim): pdbm(nullptr), dim(dim) {}
-
-    inline pdbm_t::pdbm_t(PDBM pdbm, cindex_t dim): pdbm(pdbm), dim(dim) { pdbm_incRef(pdbm); }
-
-    inline pdbm_t::pdbm_t(const pdbm_t& other): pdbm(other.pdbm), dim(other.dim) { pdbm_incRef(pdbm); }
-
-    inline pdbm_t::~pdbm_t() { pdbm_decRef(pdbm); }
-
-    inline pdbm_t& pdbm_t::operator=(const pdbm_t& other)
-    {
-        pdbm_incRef(other.pdbm);
-        pdbm_decRef(pdbm);
-        dim = other.dim;
-        pdbm = other.pdbm;
-        return *this;
-    }
-
     inline void pdbm_t::setDimension(cindex_t dim)
     {
-        pdbm_decRef(pdbm);
-        pdbm = nullptr;
+        pdbm.reset();
         this->dim = dim;
     }
 
@@ -220,57 +183,39 @@ namespace dbm
         using iterator = std::list<pdbm_t>::iterator;
 
     protected:
-        struct pfed_s
+        struct pfed_s : std::enable_shared_from_this<pfed_s>
         {
             std::list<pdbm_t> zones;
-            uint32_t count;
-            cindex_t dim;
+            cindex_t dim{0};
         };
 
-        static std::allocator<pfed_s> alloc;
-
         /** Pointer to record holding the federation. */
-        struct pfed_s* ptr;
-
-        /** Increment reference count. */
-        void incRef();
-
-        /** Decrement reference count. */
-        void decRef();
+        std::shared_ptr<pfed_s> ptr = std::make_shared<pfed_s>();
 
         /** Prepare federation for modification. */
         void prepare();
 
-        /** Copy-on-write: Creates an unshared copy of the federation. */
+        /** Copy-on-write: Creates an exclusive copy of the federation. */
         void cow();
 
         /**
          * Adds \a pdbm to the federation. The reference count on pdbm
          * is incremented by one.
          */
-        void add(const PDBM pdbm, cindex_t dim);
+        void add(PDBMPtr pdbm, cindex_t dim);
 
     public:
         /** Allocate empty priced federation of dimension 0. */
-        pfed_t();
+        pfed_t() = default;
 
         /** Allocate empty priced federation of dimension \a dim. */
-        explicit pfed_t(cindex_t dim);
+        explicit pfed_t(cindex_t dim) { ptr->dim = dim; }
 
         /**
          * Allocate a priced federation of dimension \a dim initialised to
          * \a pdbm.
          */
-        pfed_t(const PDBM pdbm, cindex_t dim);
-
-        /** The copy constructor implements copy on write. */
-        pfed_t(const pfed_t&);
-
-        /**
-         * The destructor decrements the reference count and deallocates
-         * the priced DBM when the count reaches zero.
-         */
-        ~pfed_t() noexcept;
+        pfed_t(PDBMPtr pdbm, cindex_t dim): pfed_t{dim} { add(std::move(pdbm), dim); }
 
         /**
          * Constrain x(i) to value.
@@ -427,13 +372,13 @@ namespace dbm
         pfed_t& operator=(const pfed_t&);
 
         /** Assignment operator. */
-        pfed_t& operator=(const PDBM);
+        pfed_t& operator=(const PDBMPtr&);
 
         /** Union operator. */
         pfed_t& operator|=(const pfed_t&);
 
         /** Union operator. */
-        pfed_t& operator|=(const PDBM);
+        pfed_t& operator|=(const PDBMPtr&);
 
         /** Not implemented. */
         pfed_t& operator-=(const pfed_t&);
@@ -567,17 +512,9 @@ namespace dbm
         }
     }
 
-    inline pfed_t::pfed_t(const pfed_t& pfed): ptr(pfed.ptr) { incRef(); }
-
-    inline pfed_t::~pfed_t()
-    {
-        assert(ptr->count > 0);
-        decRef();
-    }
-
     inline void pfed_t::prepare()
     {
-        if (ptr->count > 1) {
+        if (ptr.use_count() > 1) {
             cow();
         }
     }
@@ -602,8 +539,6 @@ namespace dbm
 
     inline size_t pfed_t::size() const { return ptr->zones.size(); }
 
-    inline void pfed_t::incRef() { ptr->count++; }
-
     inline bool pfed_t::isEmpty() const { return ptr->zones.empty(); }
 
     inline const pdbm_t& pfed_t::const_dbmt() const
@@ -618,9 +553,9 @@ namespace dbm
         return ptr->zones.front();
     }
 
-    inline pfed_t& pfed_t::operator=(const PDBM pdbm)
+    inline pfed_t& pfed_t::operator=(const PDBMPtr& pdbm)
     {
-        *this = pfed_t(pdbm, ptr->dim);
+        *this = pfed_t{pdbm, ptr->dim};
         return *this;
     }
 

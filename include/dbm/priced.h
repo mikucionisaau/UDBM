@@ -18,6 +18,7 @@
 
 #include <iosfwd>
 #include <utility>
+#include <memory>
 #include <cstdio>
 
 /**
@@ -68,7 +69,9 @@
 /**
  * Data type for priced dbm.
  */
-typedef struct PDBM_s* PDBM;
+struct PDBM_s;
+using PDBMPtr = std::shared_ptr<PDBM_s>;
+using PDBMCPtr = std::shared_ptr<const PDBM_s>;
 
 /**
  * Computes the size in number of bytes of a priced dbm of the given
@@ -90,7 +93,7 @@ size_t pdbm_size(cindex_t dim);
  *
  * @return An unitialised priced DBM of dimension \a dim.
  */
-PDBM pdbm_reserve(cindex_t dim, void* p);
+PDBMPtr pdbm_reserve(cindex_t dim, void* p);
 
 /**
  * Allocates a new priced DBM. The reference count is initialised to
@@ -100,7 +103,7 @@ PDBM pdbm_reserve(cindex_t dim, void* p);
  * @return A newly allocated priced DBM of dimension \a dim.
  * @pre    dim is larger than 0.
  */
-PDBM pdbm_allocate(cindex_t dim);
+PDBMPtr pdbm_allocate(cindex_t dim);
 
 /**
  * Deallocates a priced DBM.
@@ -109,40 +112,7 @@ PDBM pdbm_allocate(cindex_t dim);
  * - \a pdbm was allocated with \c pdbm_allocate().
  * - The reference count of \a pdbm is zero.
  */
-void pdbm_deallocate(PDBM& pdbm);
-
-/**
- * Increases reference count on priced DBM.
- *
- * @param pdbm is a priced DBM.
- * @pre
- * \a pdbm has been allocated with \c pdbm_allocate() and is not NULL.
- */
-inline static void pdbm_incRef(PDBM pdbm)
-{
-    assert(pdbm);
-
-    (*(int32_t*)pdbm)++;
-}
-
-/**
- * Decreases reference count on priced DBM. The DBM is deallocated
- * when the reference count reaches zero.
- *
- * @param pdbm is a priced DBM.
- * @pre   \a pdbm has been allocated with \c pdbm_allocate().
- */
-inline static void pdbm_decRef(PDBM pdbm)
-{
-    assert(pdbm == nullptr || *(int32_t*)pdbm);
-
-    /* The following relies on the reference counter being the first
-     * field of the structure.
-     */
-    if (pdbm && !--*(int32_t*)pdbm) {
-        pdbm_deallocate(pdbm);
-    }
-}
+void pdbm_deallocate(PDBM_s* pdbm);
 
 /**
  * Copy a priced DBM.
@@ -162,7 +132,7 @@ inline static void pdbm_decRef(PDBM pdbm)
  * @post   The reference count of the return value is zero.
  * @return The destination.
  */
-PDBM pdbm_copy(PDBM dst, const PDBM src, cindex_t dim);
+PDBMPtr pdbm_copy(PDBMPtr dst, const PDBMCPtr& src, cindex_t dim);
 
 /**
  * Initialises a priced DBM to the DBM containing all valuations. The
@@ -172,7 +142,7 @@ PDBM pdbm_copy(PDBM dst, const PDBM src, cindex_t dim);
  * @param pdbm is the priced DBM to initialize.
  * @param dim  is the dimension of \a pdbm.
  */
-void pdbm_init(PDBM& pdbm, cindex_t dim);
+void pdbm_init(PDBMPtr& pdbm, cindex_t dim);
 
 /**
  * Initialize a priced DBM to only contain the origin with a cost of
@@ -182,7 +152,7 @@ void pdbm_init(PDBM& pdbm, cindex_t dim);
  * @param pdbm is the priced DBM to initialise.
  * @param dim  is the dimension of \a pdbm.
  */
-void pdbm_zero(PDBM& pdbm, cindex_t dim);
+void pdbm_zero(PDBMPtr& pdbm, cindex_t dim);
 
 /**
  * Constrain a priced DBM.
@@ -201,7 +171,7 @@ void pdbm_zero(PDBM& pdbm, cindex_t dim);
  * @post   The DBM is empty or closed.
  * @return True if and only if the result is not empty.
  */
-bool pdbm_constrain1(PDBM& pdbm, cindex_t dim, cindex_t i, cindex_t j, raw_t constraint);
+bool pdbm_constrain1(PDBMPtr& pdbm, cindex_t dim, cindex_t i, cindex_t j, raw_t constraint);
 
 /**
  * Constrain a priced DBM with multiple constraints.
@@ -219,7 +189,7 @@ bool pdbm_constrain1(PDBM& pdbm, cindex_t dim, cindex_t i, cindex_t j, raw_t con
  * - or false if the DBM is empty +
  *   empty DBM + inconsistent rates
  */
-bool pdbm_constrainN(PDBM& pdbm, cindex_t dim, const constraint_t* constraints, size_t n);
+bool pdbm_constrainN(PDBMPtr& pdbm, cindex_t dim, const constraint_t* constraints, size_t n);
 
 /**
  * Constrain a priced DBM to a facet (\a i, \a j).
@@ -232,7 +202,7 @@ bool pdbm_constrainN(PDBM& pdbm, cindex_t dim, const constraint_t* constraints, 
  * @return
  * true if and only if the result is non empty.
  */
-bool pdbm_constrainToFacet(PDBM& pdbm, cindex_t dim, cindex_t i, cindex_t j);
+bool pdbm_constrainToFacet(PDBMPtr& pdbm, cindex_t dim, cindex_t i, cindex_t j);
 
 /**
  * Relation between two priced DBMs.
@@ -243,7 +213,7 @@ bool pdbm_constrainToFacet(PDBM& pdbm, cindex_t dim, cindex_t i, cindex_t j);
  * @param  dim         is the dimension of \a pdbm1 and \a pdbm2.
  * @return The relation between pdbm1 and pdbm2
  */
-relation_t pdbm_relation(const PDBM pdbm1, const PDBM pdbm2, cindex_t dim);
+relation_t pdbm_relation(const PDBMCPtr& pdbm1, const PDBMCPtr& pdbm2, cindex_t dim);
 
 /**
  * Relation between 2 priced dbms where one is in compressed. Notice
@@ -258,7 +228,7 @@ relation_t pdbm_relation(const PDBM pdbm1, const PDBM pdbm2, cindex_t dim);
  * @see    dbm_relationWithMinDBM
  * @see    relation_t
  */
-relation_t pdbm_relationWithMinDBM(const PDBM pdbm, cindex_t dim, const mingraph_t minDBM, raw_t* buffer);
+relation_t pdbm_relationWithMinDBM(const PDBMCPtr& pdbm, cindex_t dim, const mingraph_t minDBM, raw_t* buffer);
 
 /**
  * Computes the infimum cost of the priced DBM.
@@ -267,7 +237,7 @@ relation_t pdbm_relationWithMinDBM(const PDBM pdbm, cindex_t dim, const mingraph
  * @param  dim  is the dimension of \a pdbm.
  * @return The infimum cost of \a pdbm.
  */
-int32_t pdbm_getInfimum(const PDBM pdbm, cindex_t dim);
+int32_t pdbm_getInfimum(const PDBMCPtr& pdbm, cindex_t dim);
 
 /**
  * Generates a valuation which has the infimum cost of the priced DBM.
@@ -291,7 +261,7 @@ int32_t pdbm_getInfimum(const PDBM pdbm, cindex_t dim);
  * @throw out_of_range if no valuation with the given constraints can
  * be found.
  */
-int32_t pdbm_getInfimumValuation(const PDBM pdbm, cindex_t dim, int32_t* valuation, const bool* free);
+int32_t pdbm_getInfimumValuation(const PDBMCPtr& pdbm, cindex_t dim, int32_t* valuation, const bool* free);
 
 /**
  * Check if a priced DBM satisfies a given constraint.
@@ -302,7 +272,7 @@ int32_t pdbm_getInfimumValuation(const PDBM pdbm, cindex_t dim, int32_t* valuati
  * @param constraint is the raw_t bound.
  * @return true if the DBM satisfies the constraint.
  */
-bool pdbm_satisfies(const PDBM pdbm, cindex_t dim, cindex_t i, cindex_t j, raw_t constraint);
+bool pdbm_satisfies(const PDBMCPtr& pdbm, cindex_t dim, cindex_t i, cindex_t j, raw_t constraint);
 
 /**
  * Returns true if the priced DBM is empty.
@@ -311,7 +281,7 @@ bool pdbm_satisfies(const PDBM pdbm, cindex_t dim, cindex_t i, cindex_t j, raw_t
  * @param dim  is the dimension of \a pdbm.
  * @return true if and only if the priced dbm is empty.
  */
-bool pdbm_isEmpty(const PDBM pdbm, cindex_t dim);
+bool pdbm_isEmpty(const PDBMCPtr& pdbm, cindex_t dim);
 
 /**
  * Check if at least one point can delay infinitely.
@@ -320,7 +290,7 @@ bool pdbm_isEmpty(const PDBM pdbm, cindex_t dim);
  * @param  dim  is the dimension of \a pdbm.
  * @return true if unbounded, false otherwise.
  */
-bool pdbm_isUnbounded(const PDBM pdbm, cindex_t dim);
+bool pdbm_isUnbounded(const PDBMCPtr& pdbm, cindex_t dim);
 
 /**
  * Compute a hash value for a priced DBM.
@@ -332,7 +302,7 @@ bool pdbm_isUnbounded(const PDBM pdbm, cindex_t dim);
  * @param  seed is a seed for the hash function.
  * @return hash value.
  */
-uint32_t pdbm_hash(const PDBM pdbm, cindex_t dim, uint32_t seed);
+uint32_t pdbm_hash(const PDBMCPtr& pdbm, cindex_t dim, uint32_t seed);
 
 /**
  * Test if a point is included in the priced DBM.
@@ -342,7 +312,7 @@ uint32_t pdbm_hash(const PDBM pdbm, cindex_t dim, uint32_t seed);
  * @param  pt   is a clock valuation.
  * @return true if \a pt satisfies the constraints of dbm.
  */
-bool pdbm_containsInt(const PDBM pdbm, cindex_t dim, const int32_t* pt);
+bool pdbm_containsInt(const PDBMCPtr& pdbm, cindex_t dim, const int32_t* pt);
 
 /**
  * Test if a point is included in the priced DBM when strictness of
@@ -354,7 +324,7 @@ bool pdbm_containsInt(const PDBM pdbm, cindex_t dim, const int32_t* pt);
  * @return true if \a pt satisfies the constraints of dbm
  *              (ignoring strictness)
  */
-bool pdbm_containsIntWeakly(const PDBM pdbm, cindex_t dim, const int32_t* pt);
+bool pdbm_containsIntWeakly(const PDBMCPtr& pdbm, cindex_t dim, const int32_t* pt);
 
 /**
  * Test if a point is included in the priced DBM.
@@ -364,7 +334,7 @@ bool pdbm_containsIntWeakly(const PDBM pdbm, cindex_t dim, const int32_t* pt);
  * @param  pt   is a clock valuation.
  * @return true if \a pt satisfies the constraints of dbm.
  */
-bool pdbm_containsDouble(const PDBM pdbm, cindex_t dim, const double* pt);
+bool pdbm_containsDouble(const PDBMCPtr& pdbm, cindex_t dim, const double* pt);
 
 /**
  * Delay with the current delay rate.
@@ -374,7 +344,7 @@ bool pdbm_containsDouble(const PDBM pdbm, cindex_t dim, const double* pt);
  * @see   pdbm_delayRate()
  * @post  The priced DBM is closed.
  */
-void pdbm_up(PDBM& pdbm, cindex_t dim);
+void pdbm_up(PDBMPtr& pdbm, cindex_t dim);
 
 /**
  * Delay with delay rate \a rate. There must be at least one clock
@@ -387,7 +357,7 @@ void pdbm_up(PDBM& pdbm, cindex_t dim);
  *              reference clock.
  * @post  The priced DBM is closed.
  */
-void pdbm_upZero(PDBM& pdbm, cindex_t dim, int32_t rate, cindex_t zero);
+void pdbm_upZero(PDBMPtr& pdbm, cindex_t dim, int32_t rate, cindex_t zero);
 
 /**
  * Updates \a clock to \a value. This is only legitimate if the
@@ -400,7 +370,7 @@ void pdbm_upZero(PDBM& pdbm, cindex_t dim, int32_t rate, cindex_t zero);
  * @pre   pdbm_getRate(pdbm, dim, clock) == 0
  * @post  The priced DBM is closed.
  */
-void pdbm_updateValue(PDBM& pdbm, cindex_t dim, cindex_t clock, uint32_t value);
+void pdbm_updateValue(PDBMPtr& pdbm, cindex_t dim, cindex_t clock, uint32_t value);
 
 /**
  * Updates \a clock to \a value. This is only legitimate if the clock
@@ -416,21 +386,21 @@ void pdbm_updateValue(PDBM& pdbm, cindex_t dim, cindex_t clock, uint32_t value);
  * @post  The priced DBM is closed.
  * @post  pdbm_getRate(pdbm, dim, clock) == 0
  */
-void pdbm_updateValueZero(PDBM& pdbm, cindex_t dim, cindex_t clock, uint32_t value, cindex_t zero);
+void pdbm_updateValueZero(PDBMPtr& pdbm, cindex_t dim, cindex_t clock, uint32_t value, cindex_t zero);
 
 /**
  * Unfinished extrapolation function.
  *
  * @see dbm_extrapolateMaxBounds
  */
-void pdbm_extrapolateMaxBounds(PDBM& pdbm, cindex_t dim, int32_t* max);
+void pdbm_extrapolateMaxBounds(PDBMPtr& pdbm, cindex_t dim, int32_t* max);
 
 /**
  * Unfinished extrapolation function.
  *
  * @see dbm_diagonalExtrapolateMaxBounds
  */
-void pdbm_diagonalExtrapolateMaxBounds(PDBM& pdbm, cindex_t dim, int32_t* max);
+void pdbm_diagonalExtrapolateMaxBounds(PDBMPtr& pdbm, cindex_t dim, int32_t* max);
 
 /**
  * Extrapolate a priced zone. The extrapolation is based on a lower
@@ -447,7 +417,7 @@ void pdbm_diagonalExtrapolateMaxBounds(PDBM& pdbm, cindex_t dim, int32_t* max);
  * @post  The priced DBM is closed.
  * @see dbm_diagonalExtrapolateLUBounds
  */
-void pdbm_diagonalExtrapolateLUBounds(PDBM& pdbm, cindex_t dim, int32_t* lower, int32_t* upper);
+void pdbm_diagonalExtrapolateLUBounds(PDBMPtr& pdbm, cindex_t dim, int32_t* lower, int32_t* upper);
 
 /**
  * Increments the cost of each point in a priced DBM by \a value.
@@ -458,7 +428,7 @@ void pdbm_diagonalExtrapolateLUBounds(PDBM& pdbm, cindex_t dim, int32_t* lower, 
  * @post  The priced DBM is closed.
  * @pre   value >= 0
  */
-void pdbm_incrementCost(PDBM& pdbm, cindex_t dim, int32_t value);
+void pdbm_incrementCost(PDBMPtr& pdbm, cindex_t dim, int32_t value);
 
 /**
  * Compute the closure of a priced DBM. This function is only relevant
@@ -469,7 +439,7 @@ void pdbm_incrementCost(PDBM& pdbm, cindex_t dim, int32_t value);
  * @post  The priced DBM is closed or empty.
  * @see   pdbm_setBound
  */
-void pdbm_close(PDBM& pdbm, cindex_t dim);
+void pdbm_close(PDBMPtr& pdbm, cindex_t dim);
 
 /**
  * Analyze a priced DBM for its minimal graph representation. Computes
@@ -486,7 +456,7 @@ void pdbm_close(PDBM& pdbm, cindex_t dim);
  * @param  bitMatrix  is bit matrix of size dim*dim
  * @return The number of bits marked one in \a bitMatrix.
  */
-size_t pdbm_analyzeForMinDBM(const PDBM pdbm, cindex_t dim, uint32_t* bitMatrix);
+size_t pdbm_analyzeForMinDBM(const PDBMCPtr& pdbm, cindex_t dim, uint32_t* bitMatrix);
 
 /**
  * Convert the DBM to a more compact representation.
@@ -517,7 +487,7 @@ size_t pdbm_analyzeForMinDBM(const PDBM pdbm, cindex_t dim, uint32_t* bitMatrix)
  * @return The converted priced DBM. The first \a offset integers are unused.
  * @pre    allocFunction allocates memory in integer units
  */
-int32_t* pdbm_writeToMinDBMWithOffset(const PDBM pdbm, cindex_t dim, bool minimizeGraph, bool tryConstraints16,
+int32_t* pdbm_writeToMinDBMWithOffset(const PDBMCPtr& pdbm, cindex_t dim, bool minimizeGraph, bool tryConstraints16,
                                       allocator_t c_alloc, uint32_t offset);
 
 /**
@@ -531,7 +501,7 @@ int32_t* pdbm_writeToMinDBMWithOffset(const PDBM pdbm, cindex_t dim, bool minimi
  * @param src  is the compressed priced DBM.
  * @post  dst is a closed priced DBM.
  */
-void pdbm_readFromMinDBM(PDBM& dst, cindex_t dim, mingraph_t src);
+void pdbm_readFromMinDBM(PDBMPtr& dst, cindex_t dim, mingraph_t src);
 
 /**
  * Finds a clock that is on a zero cycle with \a clock. Returns true
@@ -548,7 +518,7 @@ void pdbm_readFromMinDBM(PDBM& dst, cindex_t dim, mingraph_t src);
  * @param  out   is where the clock found is written.
  * @return true if and only if a clock is found.
  */
-bool pdbm_findZeroCycle(const PDBM pdbm, cindex_t dim, cindex_t clock, cindex_t* out);
+bool pdbm_findZeroCycle(const PDBMCPtr& pdbm, cindex_t dim, cindex_t clock, cindex_t* out);
 
 /**
  * Finds a clock that is on a zero cycle with \a clock. Returns true
@@ -563,7 +533,7 @@ bool pdbm_findZeroCycle(const PDBM pdbm, cindex_t dim, cindex_t clock, cindex_t*
  * @param  out   is where the clock found is written.
  * @return true if and only if a clock is found.
  */
-bool pdbm_findNextZeroCycle(const PDBM pdbm, cindex_t dim, cindex_t x, cindex_t* out);
+bool pdbm_findNextZeroCycle(const PDBMCPtr& pdbm, cindex_t dim, cindex_t x, cindex_t* out);
 
 /**
  * Returns the slope of the cost plane along the delay trajectory.
@@ -571,7 +541,7 @@ bool pdbm_findNextZeroCycle(const PDBM pdbm, cindex_t dim, cindex_t x, cindex_t*
  * @param pdbm  is a closed priced DBM of dimension \a dim.
  * @param dim   is the dimension of \a pdbm.
  */
-int32_t pdbm_getSlopeOfDelayTrajectory(const PDBM pdbm, cindex_t dim);
+int32_t pdbm_getSlopeOfDelayTrajectory(const PDBMCPtr& pdbm, cindex_t dim);
 
 /**
  * Returns the rate (coefficient of the hyperplane) of \a clock.
@@ -581,9 +551,9 @@ int32_t pdbm_getSlopeOfDelayTrajectory(const PDBM pdbm, cindex_t dim);
  * @param  clock is the clock for which to return the coefficient.
  * @return the rate of \a clock.
  */
-int32_t pdbm_getRate(const PDBM pdbm, cindex_t dim, cindex_t clock);
+int32_t pdbm_getRate(const PDBMCPtr& pdbm, cindex_t dim, cindex_t clock);
 
-const int32_t* pdbm_getRates(const PDBM pdbm, cindex_t dim);
+const int32_t* pdbm_getRates(const PDBMCPtr& pdbm, cindex_t dim);
 
 /**
  * Returns the cost of the offset point.
@@ -591,7 +561,7 @@ const int32_t* pdbm_getRates(const PDBM pdbm, cindex_t dim);
  * @param pdbm  is a closed priced DBM of dimension \a dim.
  * @param dim   is the dimension of \a pdbm.
  */
-uint32_t pdbm_getCostAtOffset(const PDBM pdbm, cindex_t dim);
+uint32_t pdbm_getCostAtOffset(const PDBMCPtr& pdbm, cindex_t dim);
 
 /**
  * Sets the cost at the offset point.
@@ -605,7 +575,7 @@ uint32_t pdbm_getCostAtOffset(const PDBM pdbm, cindex_t dim);
  * @param dim   is the dimension of \a pdbm.
  * @param value is the new cost of the offset point.
  */
-void pdbm_setCostAtOffset(PDBM& pdbm, cindex_t dim, uint32_t value);
+void pdbm_setCostAtOffset(PDBMPtr& pdbm, cindex_t dim, uint32_t value);
 
 /**
  * Returns true if the DBM is valid. Useful for debugging.
@@ -613,7 +583,7 @@ void pdbm_setCostAtOffset(PDBM& pdbm, cindex_t dim, uint32_t value);
  * @param pdbm  is a priced DBM of dimension \a dim.
  * @param dim   is the dimension of \a pdbm.
  */
-bool pdbm_isValid(const PDBM pdbm, cindex_t dim);
+bool pdbm_isValid(const PDBMCPtr& pdbm, cindex_t dim);
 
 /**
  * Computes the lower facets of a priced DBM relative to \a clock.  As
@@ -627,7 +597,7 @@ bool pdbm_isValid(const PDBM pdbm, cindex_t dim);
  *                the lower facets will be written.
  * @return The number of facets written to \a facets.
  */
-uint32_t pdbm_getLowerRelativeFacets(PDBM& pdbm, cindex_t dim, cindex_t clock, cindex_t* facets);
+uint32_t pdbm_getLowerRelativeFacets(PDBMPtr& pdbm, cindex_t dim, cindex_t clock, cindex_t* facets);
 
 /**
  * Computes the upper facets of a priced DBM relative to \a clock.  As
@@ -641,7 +611,7 @@ uint32_t pdbm_getLowerRelativeFacets(PDBM& pdbm, cindex_t dim, cindex_t clock, c
  *                the upper facets will be written.
  * @return The number of facets written to \a facets.
  */
-uint32_t pdbm_getUpperRelativeFacets(PDBM& pdbm, cindex_t dim, cindex_t clock, cindex_t* facets);
+uint32_t pdbm_getUpperRelativeFacets(PDBMPtr& pdbm, cindex_t dim, cindex_t clock, cindex_t* facets);
 
 /**
  * Computes the lower facets of a priced DBM.
@@ -652,7 +622,7 @@ uint32_t pdbm_getUpperRelativeFacets(PDBM& pdbm, cindex_t dim, cindex_t clock, c
  *                lower facets will be written.
  * @return The number of facets written to \a facets.
  */
-uint32_t pdbm_getLowerFacets(PDBM& pdbm, cindex_t dim, cindex_t* facets);
+uint32_t pdbm_getLowerFacets(PDBMPtr& pdbm, cindex_t dim, cindex_t* facets);
 
 /**
  * Computes the upper facets of a priced DBM.
@@ -663,7 +633,7 @@ uint32_t pdbm_getLowerFacets(PDBM& pdbm, cindex_t dim, cindex_t* facets);
  *                upper facets will be written.
  * @return The number of facets written to \a facets.
  */
-uint32_t pdbm_getUpperFacets(PDBM& pdbm, cindex_t dim, cindex_t* facets);
+uint32_t pdbm_getUpperFacets(PDBMPtr& pdbm, cindex_t dim, cindex_t* facets);
 
 /**
  * Computes the cost of a valuation in a priced DBM.
@@ -674,7 +644,7 @@ uint32_t pdbm_getUpperFacets(PDBM& pdbm, cindex_t dim, cindex_t* facets);
  * @pre    pdbm_containsInt(pdbm, dim, valuation)
  * @return The cost of \a valuation in \a pdbm.
  */
-int32_t pdbm_getCostOfValuation(const PDBM pdbm, cindex_t dim, const int32_t* valuation);
+int32_t pdbm_getCostOfValuation(const PDBMCPtr& pdbm, cindex_t dim, const int32_t* valuation);
 
 /**
  * Makes all strong constraints of a priced DBM weak.
@@ -683,7 +653,7 @@ int32_t pdbm_getCostOfValuation(const PDBM pdbm, cindex_t dim, const int32_t* va
  * @param dim       is the dimension of \a pdbm.
  * @post  The priced DBM is closed.
  */
-void pdbm_relax(PDBM& pdbm, cindex_t dim);
+void pdbm_relax(PDBMPtr& pdbm, cindex_t dim);
 
 /**
  * Computes the offset point of a priced DBM.
@@ -693,7 +663,7 @@ void pdbm_relax(PDBM& pdbm, cindex_t dim);
  * @param valuation is an array of at least \a dim elements to which the
  *                  offset point is written.
  */
-void pdbm_getOffset(const PDBM pdbm, cindex_t dim, int32_t* valuation);
+void pdbm_getOffset(const PDBMCPtr& pdbm, cindex_t dim, int32_t* valuation);
 
 /**
  * Sets a coefficient of the hyperplane of a priced DBM.
@@ -703,7 +673,7 @@ void pdbm_getOffset(const PDBM pdbm, cindex_t dim, int32_t* valuation);
  * @param clock is the index of a clock for which to set the coefficient.
  * @param rate  is the coefficient.
  */
-void pdbm_setRate(PDBM& pdbm, cindex_t dim, cindex_t clock, int32_t rate);
+void pdbm_setRate(PDBMPtr& pdbm, cindex_t dim, cindex_t clock, int32_t rate);
 
 /**
  * Returns the inner matrix of a priced DBM. The matrix can be
@@ -713,7 +683,7 @@ void pdbm_setRate(PDBM& pdbm, cindex_t dim, cindex_t clock, int32_t rate);
  * @param pdbm  is a priced DBM of dimension \a dim.
  * @param dim   is the dimension of \a pdbm.
  */
-raw_t* pdbm_getMutableMatrix(PDBM& pdbm, cindex_t dim);
+raw_t* pdbm_getMutableMatrix(PDBMPtr& pdbm, cindex_t dim);
 
 /**
  * Returns the inner matrix of a priced DBM. The matrix is read-only.
@@ -721,7 +691,7 @@ raw_t* pdbm_getMutableMatrix(PDBM& pdbm, cindex_t dim);
  * @param pdbm  is a closed priced DBM of dimension \a dim.
  * @param dim   is the dimension of \a pdbm.
  */
-const raw_t* pdbm_getMatrix(const PDBM pdbm, cindex_t dim);
+const raw_t* pdbm_getMatrix(const PDBMCPtr& pdbm, cindex_t dim);
 
 /**
  * Frees a clock of a priced DBM.
@@ -730,7 +700,7 @@ const raw_t* pdbm_getMatrix(const PDBM pdbm, cindex_t dim);
  * @param dim   is the dimension of \a pdbm.
  * @param clock is the index of the clock to free.
  */
-void pdbm_freeClock(PDBM& pdbm, cindex_t dim, cindex_t clock);
+void pdbm_freeClock(PDBMPtr& pdbm, cindex_t dim, cindex_t clock);
 
 /**
  * Prints a priced DBM to a stream.
@@ -740,7 +710,7 @@ void pdbm_freeClock(PDBM& pdbm, cindex_t dim, cindex_t clock);
  * @param dim  is the dimension of \a pdbm.
  * @see dbm_print
  */
-void pdbm_print(FILE* f, const PDBM pdbm, cindex_t dim);
+void pdbm_print(FILE* f, const PDBMCPtr& pdbm, cindex_t dim);
 
 /**
  * Prints a priced DBM to a stream.
@@ -750,7 +720,7 @@ void pdbm_print(FILE* f, const PDBM pdbm, cindex_t dim);
  * @param dim  is the dimension of \a pdbm.
  * @see dbm_print
  */
-std::ostream& pdbm_print(std::ostream& os, const PDBM pdbm, cindex_t dim);
+std::ostream& pdbm_print(std::ostream& os, const PDBMCPtr& pdbm, cindex_t dim);
 
 /**
  * Implementation of the free up operation for priced DBMs.
@@ -760,7 +730,7 @@ std::ostream& pdbm_print(std::ostream& os, const PDBM pdbm, cindex_t dim);
  * @param index is an index of a clock.
  * @see dbm_freeUp
  */
-void pdbm_freeUp(PDBM& pdbm, cindex_t dim, cindex_t index);
+void pdbm_freeUp(PDBMPtr& pdbm, cindex_t dim, cindex_t index);
 
 /**
  * Implementation of the free down operation for priced DBMs.
@@ -770,7 +740,7 @@ void pdbm_freeUp(PDBM& pdbm, cindex_t dim, cindex_t index);
  * @param index is an index of a clock. *
  * @see dbm_freeDown
  */
-void pdbm_freeDown(PDBM& pdbm, cindex_t dim, cindex_t index);
+void pdbm_freeDown(PDBMPtr& pdbm, cindex_t dim, cindex_t index);
 
 /**
  * Checks whether a priced DBM is in normal form.
@@ -778,7 +748,7 @@ void pdbm_freeDown(PDBM& pdbm, cindex_t dim, cindex_t index);
  * @param pdbm  is a closed priced DBM of dimension \a dim.
  * @param dim   is the dimension of \a pdbm.
  */
-bool pdbm_hasNormalForm(PDBM pdbm, cindex_t dim);
+bool pdbm_hasNormalForm(const PDBMPtr& pdbm, cindex_t dim);
 
 /**
  * Brings a priced DBM into normal form.
@@ -786,7 +756,7 @@ bool pdbm_hasNormalForm(PDBM pdbm, cindex_t dim);
  * @param pdbm  is a closed priced DBM of dimension \a dim.
  * @param dim   is the dimension of \a pdbm.
  */
-void pdbm_normalise(PDBM pdbm, cindex_t dim);
+void pdbm_normalise(const PDBMPtr& pdbm, cindex_t dim);
 
 ///////////////////////////////////////////////////////////////////////////
 

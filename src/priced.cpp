@@ -23,24 +23,24 @@
 #include <iostream>
 #include <stdexcept>
 #include <cassert>
-#include <cstdlib>
+#include <memory>
 
-struct PDBM_s
+struct PDBM_s : std::enable_shared_from_this<PDBM_s>
 {
-    uint32_t count;
     uint32_t cost;
     uint32_t infimum;
     int32_t data[];
 };
 
 /** Returns the vectors of coefficients. */
-static inline int32_t* pdbm_rates(const PDBM pdbm) { return pdbm->data; }
+static const int32_t* pdbm_rates(const PDBMCPtr& pdbm) { return pdbm->data; }
+static int32_t* pdbm_rates(const PDBMPtr& pdbm) { return pdbm->data; }
 
 /** Returns the DBM matrix part of the priced DBM. */
-static inline dbm::writer pdbm_matrix(const PDBM pdbm, cindex_t dim) { return {pdbm->data + dim, dim}; }
+static dbm::writer pdbm_matrix(const PDBMPtr& pdbm, cindex_t dim) { return {pdbm->data + dim, dim}; }
 
 /** Returns the cache infimum. */
-static inline auto& pdbm_cache(const PDBM pdbm) { return pdbm->infimum; }
+static auto& pdbm_cache(const PDBMPtr& pdbm) { return pdbm->infimum; }
 
 /** Constant to mark the cached infimum as void. */
 #define INVALID INT_MAX
@@ -55,7 +55,7 @@ static inline auto& pdbm_cache(const PDBM pdbm) { return pdbm->infimum; }
  * @param  j    is the index of a clock
  * @return True if and only if \a i and \a j form a zero cycle in \a pdbm.
  */
-static bool pdbm_areOnZeroCycle(const PDBM pdbm, cindex_t dim, cindex_t i, cindex_t j)
+static bool pdbm_areOnZeroCycle(const PDBMPtr& pdbm, cindex_t dim, cindex_t i, cindex_t j)
 {
     assert(pdbm && dim && i < dim && j < dim && i != j);
 
@@ -90,14 +90,12 @@ static void dbm_findZeroCycles(dbm::reader dbm, cindex_t* next)
  * Prepares a priced DBM for modification. If it is shared, a copy
  * will be created.
  */
-static void pdbm_prepare(PDBM& pdbm, cindex_t dim)
+static void pdbm_prepare(PDBMPtr& pdbm, cindex_t dim)
 {
     assert(pdbm && dim);
 
-    if (pdbm->count > 1) {
-        pdbm_decRef(pdbm);
+    if (pdbm.use_count() > 1) {
         pdbm = pdbm_copy(nullptr, pdbm, dim);
-        pdbm_incRef(pdbm);
     }
 }
 
@@ -113,12 +111,10 @@ static void pdbm_prepare(PDBM& pdbm, cindex_t dim)
  *
  *  - no copy is performed, even when the priced DBM was shared.
  */
-static void pdbm_blank(PDBM& pdbm, cindex_t dim)
+static void pdbm_blank(PDBMPtr& pdbm, cindex_t dim)
 {
-    if (pdbm == nullptr || pdbm->count > 1) {
-        pdbm_decRef(pdbm);
+    if (pdbm == nullptr || pdbm.use_count() > 1) {
         pdbm = pdbm_allocate(dim);
-        pdbm_incRef(pdbm);
     }
 }
 
@@ -128,50 +124,40 @@ size_t pdbm_size(cindex_t dim)
     return sizeof(struct PDBM_s) + (dim * dim + dim) * sizeof(int32_t);
 }
 
-PDBM pdbm_reserve(cindex_t dim, void* p)
+PDBMPtr pdbm_reserve(cindex_t dim, void* p)
 {
     assert(dim && p);
-
-    PDBM pdbm = (PDBM)p;
-    pdbm->count = 0;
+    auto pdbm = PDBMPtr{new (p) PDBM_s, &pdbm_deallocate};
     pdbm_cache(pdbm) = INVALID;
     pdbm_rates(pdbm)[0] = 0;
     return pdbm;
 }
 
-PDBM pdbm_allocate(cindex_t dim)
+PDBMPtr pdbm_allocate(cindex_t dim)
 {
     assert(dim);
     return pdbm_reserve(dim, malloc(pdbm_size(dim)));
 }
 
-void pdbm_deallocate(PDBM& pdbm)
+void pdbm_deallocate(PDBM_s* pdbm)
 {
-    assert(pdbm == nullptr || pdbm->count == 0);
-
+    assert(pdbm == nullptr);
     free(pdbm);
-
-    /* Setting the pointer to NULL protects against accidental use of
-     * a deallocated priced DBM.
-     */
-    pdbm = nullptr;
 }
 
-PDBM pdbm_copy(PDBM dst, const PDBM src, cindex_t dim)
+PDBMPtr pdbm_copy(PDBMPtr dst, const PDBMCPtr& src, cindex_t dim)
 {
-    assert(src && dim && (dst == nullptr || dst->count == 0));
-
+    assert(src && dim && (dst == nullptr || dst.use_count() == 0));
     if (dst == nullptr) {
         dst = pdbm_allocate(dim);
     }
 
-    memcpy(dst, src, pdbm_size(dim));
-    dst->count = 0;
+    memcpy((void*)dst.get(), (const void*)src.get(), pdbm_size(dim));
 
     return dst;
 }
 
-void pdbm_init(PDBM& pdbm, cindex_t dim)
+void pdbm_init(PDBMPtr& pdbm, cindex_t dim)
 {
     assert(dim);
 
@@ -185,7 +171,7 @@ void pdbm_init(PDBM& pdbm, cindex_t dim)
     assertx(pdbm_isValid(pdbm, dim));
 }
 
-void pdbm_zero(PDBM& pdbm, cindex_t dim)
+void pdbm_zero(PDBMPtr& pdbm, cindex_t dim)
 {
     assert(dim);
 
@@ -199,7 +185,7 @@ void pdbm_zero(PDBM& pdbm, cindex_t dim)
     assertx(pdbm_isValid(pdbm, dim));
 }
 
-bool pdbm_constrain1(PDBM& pdbm, cindex_t dim, cindex_t i, cindex_t j, raw_t constraint)
+bool pdbm_constrain1(PDBMPtr& pdbm, cindex_t dim, cindex_t i, cindex_t j, raw_t constraint)
 {
     assert(pdbm && dim && i < dim && j < dim);
 
@@ -214,9 +200,8 @@ bool pdbm_constrain1(PDBM& pdbm, cindex_t dim, cindex_t i, cindex_t j, raw_t con
     /* If constraint will make DBM empty, then mark it as empty.
      */
     if (dbm_negRaw(constraint) >= dbm.at(j, i)) {
-        if (pdbm->count > 1) {
-            pdbm_decRef(pdbm);
-            pdbm = nullptr;
+        if (pdbm.use_count() > 1) {
+            pdbm.reset();
         } else {
             dbm.at(i, j) = constraint;
             dbm.at(0, 0) = -1; /* consistent with isEmpty */
@@ -255,7 +240,7 @@ bool pdbm_constrain1(PDBM& pdbm, cindex_t dim, cindex_t i, cindex_t j, raw_t con
     return true;
 }
 
-bool pdbm_constrainN(PDBM& pdbm, cindex_t dim, const constraint_t* constraints, size_t n)
+bool pdbm_constrainN(PDBMPtr& pdbm, cindex_t dim, const constraint_t* constraints, size_t n)
 {
     assert(pdbm && dim);
 
@@ -347,7 +332,7 @@ static int32_t infOfDiff(const raw_t* dbm, uint32_t dim, int32_t cost1, const in
     return pdbm_infimum(dbm, dim, cost, rates.data());
 }
 
-relation_t pdbm_relation(const PDBM pdbm1, const PDBM pdbm2, cindex_t dim)
+relation_t pdbm_relation(const PDBMPtr& pdbm1, const PDBMPtr& pdbm2, cindex_t dim)
 {
     assert(pdbm1 && pdbm2 && dim);
 
@@ -440,7 +425,7 @@ relation_t pdbm_relation(const PDBM pdbm1, const PDBM pdbm2, cindex_t dim)
     }
 }
 
-relation_t pdbm_relationWithMinDBM(const PDBM pdbm1, cindex_t dim, const mingraph_t pdbm2, raw_t* dbm2)
+relation_t pdbm_relationWithMinDBM(const PDBMPtr& pdbm1, cindex_t dim, const mingraph_t pdbm2, raw_t* dbm2)
 {
     assert(pdbm1 && pdbm2 && dim && dbm2);
 
@@ -550,18 +535,18 @@ relation_t pdbm_relationWithMinDBM(const PDBM pdbm1, cindex_t dim, const mingrap
     }
 }
 
-int32_t pdbm_getInfimum(const PDBM pdbm, cindex_t dim)
+int32_t pdbm_getInfimum(const PDBMPtr& pdbm, cindex_t dim)
 {
     assert(pdbm && dim);
     assert(dbm_isValid(pdbm_matrix(pdbm, dim), dim));
     uint32_t cache = pdbm_cache(pdbm);
     if (cache == INVALID) {
-        pdbm_cache((PDBM)pdbm) = cache = pdbm_infimum(pdbm_matrix(pdbm, dim), dim, pdbm->cost, pdbm_rates(pdbm));
+        pdbm_cache(pdbm) = cache = pdbm_infimum(pdbm_matrix(pdbm, dim), dim, pdbm->cost, pdbm_rates(pdbm));
     }
     return cache;
 }
 
-int32_t pdbm_getInfimumValuation(const PDBM pdbm, cindex_t dim, int32_t* valuation, const bool* free)
+int32_t pdbm_getInfimumValuation(const PDBMPtr& pdbm, cindex_t dim, int32_t* valuation, const bool* free)
 {
     assert(pdbm && dim && valuation);
     assert(pdbm_isValid(pdbm, dim));
@@ -604,37 +589,36 @@ int32_t pdbm_getInfimumValuation(const PDBM pdbm, cindex_t dim, int32_t* valuati
     return cost;
 }
 
-bool pdbm_satisfies(const PDBM pdbm, cindex_t dim, cindex_t i, cindex_t j, raw_t constraint)
+bool pdbm_satisfies(const PDBMPtr& pdbm, cindex_t dim, cindex_t i, cindex_t j, raw_t constraint)
 {
     assert(pdbm && dim && i < dim && i < dim);
     return dbm_satisfies(pdbm_matrix(pdbm, dim), dim, i, j, constraint);
 }
 
-bool pdbm_isEmpty(const PDBM pdbm, cindex_t dim)
+bool pdbm_isEmpty(const PDBMPtr& pdbm, cindex_t dim)
 {
     assert(pdbm && dim);
     return pdbm == nullptr || dbm_isEmpty(pdbm_matrix(pdbm, dim), dim);
 }
 
-bool pdbm_isUnbounded(const PDBM pdbm, cindex_t dim)
+bool pdbm_isUnbounded(const PDBMPtr& pdbm, cindex_t dim)
 {
     assert(pdbm && dim);
     return dbm_isUnbounded(pdbm_matrix(pdbm, dim), dim);
 }
 
-uint32_t pdbm_hash(const PDBM pdbm, cindex_t dim, uint32_t seed)
+uint32_t pdbm_hash(const PDBMCPtr& pdbm, cindex_t dim, uint32_t seed)
 {
     assert(pdbm && dim && !(pdbm_size(dim) & 3));
-    return hash_computeI32((int32_t*)pdbm, pdbm_size(dim) >> 2, seed);
+    return hash_computeI32((const int32_t*)pdbm.get(), pdbm_size(dim) >> 2, seed);
 }
 
 static bool isPointIncludedWeakly(const int32_t* pt, dbm::reader dbm, cindex_t dim)
 {
-    cindex_t i, j;
     assert(pt && dbm && dim);
 
-    for (i = 0; i < dim; ++i) {
-        for (j = 0; j < dim; ++j) {
+    for (auto i = cindex_t{0}; i < dim; ++i) {
+        for (auto j = cindex_t{0}; j < dim; ++j) {
             if (pt[i] - pt[j] > dbm.bound(i, j)) {
                 return false;
             }
@@ -644,28 +628,28 @@ static bool isPointIncludedWeakly(const int32_t* pt, dbm::reader dbm, cindex_t d
     return true;
 }
 
-bool pdbm_containsInt(const PDBM pdbm, cindex_t dim, const int32_t* pt)
+bool pdbm_containsInt(const PDBMPtr& pdbm, cindex_t dim, const int32_t* pt)
 {
     assert(pdbm && dim && pt);
 
     return dbm_isPointIncluded(pt, pdbm_matrix(pdbm, dim), dim);
 }
 
-bool pdbm_containsIntWeakly(const PDBM pdbm, cindex_t dim, const int32_t* pt)
+bool pdbm_containsIntWeakly(const PDBMPtr& pdbm, cindex_t dim, const int32_t* pt)
 {
     assert(pdbm && dim && pt);
 
     return isPointIncludedWeakly(pt, pdbm_matrix(pdbm, dim), dim);
 }
 
-bool pdbm_containsDouble(const PDBM pdbm, cindex_t dim, const double* pt)
+bool pdbm_containsDouble(const PDBMPtr& pdbm, cindex_t dim, const double* pt)
 {
     assert(pdbm && dim && pt);
 
     return dbm_isRealPointIncluded(pt, pdbm_matrix(pdbm, dim), dim);
 }
 
-void pdbm_up(PDBM& pdbm, cindex_t dim)
+void pdbm_up(PDBMPtr& pdbm, cindex_t dim)
 {
     assert(pdbm && dim);
 
@@ -675,7 +659,7 @@ void pdbm_up(PDBM& pdbm, cindex_t dim)
     assertx(pdbm_isValid(pdbm, dim));
 }
 
-void pdbm_upZero(PDBM& pdbm, cindex_t dim, int32_t rate, cindex_t zero)
+void pdbm_upZero(PDBMPtr& pdbm, cindex_t dim, int32_t rate, cindex_t zero)
 {
     assert(pdbm && dim && zero > 0 && zero < dim);
     assert(pdbm_areOnZeroCycle(pdbm, dim, 0, zero));
@@ -692,7 +676,7 @@ void pdbm_upZero(PDBM& pdbm, cindex_t dim, int32_t rate, cindex_t zero)
     assertx(pdbm_isValid(pdbm, dim));
 }
 
-void pdbm_updateValue(PDBM& pdbm, cindex_t dim, cindex_t clock, uint32_t value)
+void pdbm_updateValue(PDBMPtr& pdbm, cindex_t dim, cindex_t clock, uint32_t value)
 {
     assert(pdbm && dim && clock < dim);
     assert(pdbm_getRate(pdbm, dim, clock) == 0);
@@ -704,7 +688,7 @@ void pdbm_updateValue(PDBM& pdbm, cindex_t dim, cindex_t clock, uint32_t value)
     assertx(pdbm_isValid(pdbm, dim));
 }
 
-void pdbm_updateValueZero(PDBM& pdbm, cindex_t dim, cindex_t clock, uint32_t value, cindex_t zero)
+void pdbm_updateValueZero(PDBMPtr& pdbm, cindex_t dim, cindex_t clock, uint32_t value, cindex_t zero)
 {
     assert(pdbm && dim && clock < dim && zero < dim);
     assert(pdbm_areOnZeroCycle(pdbm, dim, clock, zero));
@@ -766,7 +750,7 @@ U           L
  * preprocessing step, we change the maximum constant to infinity for
  * all clocks with a non-xero cost rate.
  */
-void pdbm_extrapolateMaxBounds(PDBM& pdbm, cindex_t dim, int32_t* max)
+void pdbm_extrapolateMaxBounds(PDBMPtr& pdbm, cindex_t dim, int32_t* max)
 {
     assert(pdbm && dim);
 
@@ -789,7 +773,7 @@ void pdbm_extrapolateMaxBounds(PDBM& pdbm, cindex_t dim, int32_t* max)
  * on a zero cycle with another clock, the cost rate can be made zero
  * by transfering the rate to the other clock.
  */
-void pdbm_diagonalExtrapolateMaxBounds(PDBM& pdbm, cindex_t dim, int32_t* max)
+void pdbm_diagonalExtrapolateMaxBounds(PDBMPtr& pdbm, cindex_t dim, int32_t* max)
 {
     assert(pdbm && dim);
 
@@ -833,7 +817,7 @@ void pdbm_diagonalExtrapolateMaxBounds(PDBM& pdbm, cindex_t dim, int32_t* max)
     dbm_diagonalExtrapolateMaxBounds(pdbm_matrix(pdbm, dim), dim, max);
 }
 
-void pdbm_diagonalExtrapolateLUBounds(PDBM& pdbm, cindex_t dim, int32_t* lower, int32_t* upper)
+void pdbm_diagonalExtrapolateLUBounds(PDBMPtr& pdbm, cindex_t dim, int32_t* lower, int32_t* upper)
 {
     assert(pdbm && dim);
 
@@ -858,7 +842,7 @@ void pdbm_diagonalExtrapolateLUBounds(PDBM& pdbm, cindex_t dim, int32_t* lower, 
     dbm_diagonalExtrapolateLUBounds(pdbm_matrix(pdbm, dim), dim, lower, upper);
 }
 
-void pdbm_incrementCost(PDBM& pdbm, cindex_t dim, int32_t value)
+void pdbm_incrementCost(PDBMPtr& pdbm, cindex_t dim, int32_t value)
 {
     assert(pdbm && dim && value >= 0);
 
@@ -869,7 +853,7 @@ void pdbm_incrementCost(PDBM& pdbm, cindex_t dim, int32_t value)
     assertx(pdbm_isValid(pdbm, dim));
 }
 
-void pdbm_close(PDBM& pdbm, cindex_t dim)
+void pdbm_close(PDBMPtr& pdbm, cindex_t dim)
 {
     assert(dim);
 
@@ -881,14 +865,14 @@ void pdbm_close(PDBM& pdbm, cindex_t dim)
     assertx(pdbm_isValid(pdbm, dim));
 }
 
-size_t pdbm_analyzeForMinDBM(const PDBM pdbm, cindex_t dim, uint32_t* bitMatrix)
+size_t pdbm_analyzeForMinDBM(const PDBMPtr& pdbm, cindex_t dim, uint32_t* bitMatrix)
 {
     assert(pdbm && dim);
 
     return dbm_analyzeForMinDBM(pdbm_matrix(pdbm, dim), dim, bitMatrix);
 }
 
-int32_t* pdbm_writeToMinDBMWithOffset(const PDBM pdbm, cindex_t dim, bool minimizeGraph, bool tryConstraints16,
+int32_t* pdbm_writeToMinDBMWithOffset(const PDBMPtr& pdbm, cindex_t dim, bool minimizeGraph, bool tryConstraints16,
                                       allocator_t allocator, uint32_t offset)
 {
     assert(pdbm && dim);
@@ -902,7 +886,7 @@ int32_t* pdbm_writeToMinDBMWithOffset(const PDBM pdbm, cindex_t dim, bool minimi
     return graph;
 }
 
-void pdbm_readFromMinDBM(PDBM& dst, cindex_t dim, mingraph_t src)
+void pdbm_readFromMinDBM(PDBMPtr& dst, cindex_t dim, mingraph_t src)
 {
     assert(dst && dim);
 
@@ -915,7 +899,7 @@ void pdbm_readFromMinDBM(PDBM& dst, cindex_t dim, mingraph_t src)
     assertx(pdbm_isValid(dst, dim));
 }
 
-bool pdbm_findNextZeroCycle(const PDBM pdbm, cindex_t dim, cindex_t x, cindex_t* out)
+bool pdbm_findNextZeroCycle(const PDBMPtr& pdbm, cindex_t dim, cindex_t x, cindex_t* out)
 {
     assert(pdbm && dim && x < dim && out);
 
@@ -934,17 +918,17 @@ bool pdbm_findNextZeroCycle(const PDBM pdbm, cindex_t dim, cindex_t x, cindex_t*
     return false;
 }
 
-bool pdbm_findZeroCycle(const PDBM pdbm, cindex_t dim, cindex_t x, cindex_t* out)
+bool pdbm_findZeroCycle(const PDBMCPtr& pdbm, cindex_t dim, cindex_t x, cindex_t* out)
 {
     *out = 0;
     return pdbm_findNextZeroCycle(pdbm, dim, x, out);
 }
 
-int32_t pdbm_getSlopeOfDelayTrajectory(const PDBM pdbm, cindex_t dim)
+int32_t pdbm_getSlopeOfDelayTrajectory(const PDBMCPtr& pdbm, cindex_t dim)
 {
     assert(pdbm && dim);
 
-    int32_t* rates = pdbm_rates(pdbm);
+    const int32_t* rates = pdbm_rates(pdbm);
     int32_t sum = 0;
     for (uint32_t i = 1; i < dim; i++) {
         sum += rates[i];
@@ -952,21 +936,21 @@ int32_t pdbm_getSlopeOfDelayTrajectory(const PDBM pdbm, cindex_t dim)
     return sum;
 }
 
-int32_t pdbm_getRate(const PDBM pdbm, cindex_t dim, cindex_t clock)
+int32_t pdbm_getRate(const PDBMCPtr& pdbm, cindex_t dim, cindex_t clock)
 {
     assert(pdbm && dim && clock > 0 && clock < dim);
 
     return pdbm_rates(pdbm)[clock];
 }
 
-uint32_t pdbm_getCostAtOffset(const PDBM pdbm, cindex_t dim)
+uint32_t pdbm_getCostAtOffset(const PDBMCPtr& pdbm, cindex_t dim)
 {
     assert(pdbm && dim);
 
     return pdbm->cost;
 }
 
-void pdbm_setCostAtOffset(PDBM& pdbm, cindex_t dim, uint32_t value)
+void pdbm_setCostAtOffset(PDBMPtr& pdbm, cindex_t dim, uint32_t value)
 {
     assert(pdbm && dim);
 
@@ -1002,7 +986,7 @@ static bool isRedundant(dbm::reader dbm, cindex_t i, cindex_t j, cindex_t* next)
     return true;
 }
 
-uint32_t pdbm_getLowerRelativeFacets(PDBM& pdbm, cindex_t dim, cindex_t clock, cindex_t* facets)
+uint32_t pdbm_getLowerRelativeFacets(PDBMPtr& pdbm, cindex_t dim, cindex_t clock, cindex_t* facets)
 {
     assert(pdbm && dim && clock < dim);
 
@@ -1033,7 +1017,7 @@ uint32_t pdbm_getLowerRelativeFacets(PDBM& pdbm, cindex_t dim, cindex_t clock, c
     return cnt;
 }
 
-uint32_t pdbm_getUpperRelativeFacets(PDBM& pdbm, cindex_t dim, cindex_t clock, cindex_t* facets)
+uint32_t pdbm_getUpperRelativeFacets(PDBMPtr& pdbm, cindex_t dim, cindex_t clock, cindex_t* facets)
 {
     assert(pdbm && dim && clock < dim && facets);
 
@@ -1065,7 +1049,7 @@ uint32_t pdbm_getUpperRelativeFacets(PDBM& pdbm, cindex_t dim, cindex_t clock, c
     return cnt;
 }
 
-uint32_t pdbm_getLowerFacets(PDBM& pdbm, cindex_t dim, cindex_t* facets)
+uint32_t pdbm_getLowerFacets(PDBMPtr& pdbm, cindex_t dim, cindex_t* facets)
 {
     assert(pdbm && dim && facets);
 
@@ -1097,7 +1081,7 @@ uint32_t pdbm_getLowerFacets(PDBM& pdbm, cindex_t dim, cindex_t* facets)
     return cnt;
 }
 
-uint32_t pdbm_getUpperFacets(PDBM& pdbm, cindex_t dim, cindex_t* facets)
+uint32_t pdbm_getUpperFacets(PDBMPtr& pdbm, cindex_t dim, cindex_t* facets)
 {
     assert(pdbm && dim && facets);
 
@@ -1129,7 +1113,7 @@ uint32_t pdbm_getUpperFacets(PDBM& pdbm, cindex_t dim, cindex_t* facets)
     return cnt;
 }
 
-int32_t pdbm_getCostOfValuation(const PDBM pdbm, cindex_t dim, const int32_t* valuation)
+int32_t pdbm_getCostOfValuation(const PDBMPtr& pdbm, cindex_t dim, const int32_t* valuation)
 {
     assert(pdbm && dim && valuation);
     assert(pdbm_containsInt(pdbm, dim, valuation));
@@ -1142,7 +1126,7 @@ int32_t pdbm_getCostOfValuation(const PDBM pdbm, cindex_t dim, const int32_t* va
     return cost;
 }
 
-void pdbm_relax(PDBM& pdbm, cindex_t dim)
+void pdbm_relax(PDBMPtr& pdbm, cindex_t dim)
 {
     pdbm_prepare(pdbm, dim);
 
@@ -1156,7 +1140,7 @@ void pdbm_relax(PDBM& pdbm, cindex_t dim)
     assertx(pdbm_isValid(pdbm, dim));
 }
 
-bool pdbm_isValid(const PDBM pdbm, cindex_t dim)
+bool pdbm_isValid(const PDBMPtr& pdbm, cindex_t dim)
 {
     assert(dim);
 
@@ -1174,7 +1158,7 @@ bool pdbm_isValid(const PDBM pdbm, cindex_t dim)
            (!pdbm_isUnbounded(pdbm, dim) || pdbm_getSlopeOfDelayTrajectory(pdbm, dim) >= 0);
 }
 
-void pdbm_freeClock(PDBM& pdbm, cindex_t dim, cindex_t clock)
+void pdbm_freeClock(PDBMPtr& pdbm, cindex_t dim, cindex_t clock)
 {
     assert(pdbm && dim && clock > 0 && clock < dim);
     assert(pdbm_rates(pdbm)[clock] == 0);
@@ -1184,7 +1168,7 @@ void pdbm_freeClock(PDBM& pdbm, cindex_t dim, cindex_t clock)
     assertx(pdbm_isValid(pdbm, dim));
 }
 
-void pdbm_getOffset(const PDBM pdbm, cindex_t dim, int32_t* valuation)
+void pdbm_getOffset(const PDBMPtr& pdbm, cindex_t dim, int32_t* valuation)
 {
     assert(pdbm && dim && valuation);
 
@@ -1195,7 +1179,7 @@ void pdbm_getOffset(const PDBM pdbm, cindex_t dim, int32_t* valuation)
     }
 }
 
-void pdbm_setRate(PDBM& pdbm, cindex_t dim, cindex_t clock, int32_t rate)
+void pdbm_setRate(PDBMPtr& pdbm, cindex_t dim, cindex_t clock, int32_t rate)
 {
     assert(pdbm && dim && clock > 0 && clock < dim);
 
@@ -1204,7 +1188,7 @@ void pdbm_setRate(PDBM& pdbm, cindex_t dim, cindex_t clock, int32_t rate)
     pdbm_cache(pdbm) = INVALID;
 }
 
-raw_t* pdbm_getMutableMatrix(PDBM& pdbm, cindex_t dim)
+raw_t* pdbm_getMutableMatrix(PDBMPtr& pdbm, cindex_t dim)
 {
     assert(dim);
 
@@ -1212,33 +1196,32 @@ raw_t* pdbm_getMutableMatrix(PDBM& pdbm, cindex_t dim)
         pdbm_prepare(pdbm, dim);
     } else {
         pdbm = pdbm_allocate(dim);
-        pdbm_incRef(pdbm);
     }
     pdbm_cache(pdbm) = INVALID;
 
     return pdbm_matrix(pdbm, dim);
 }
 
-const raw_t* pdbm_getMatrix(const PDBM pdbm, cindex_t dim)
+const raw_t* pdbm_getMatrix(const PDBMPtr& pdbm, cindex_t dim)
 {
     assert(pdbm && dim);
     return pdbm_matrix(pdbm, dim);
 }
 
-const int32_t* pdbm_getRates(const PDBM pdbm, cindex_t dim)
+const int32_t* pdbm_getRates(const PDBMCPtr& pdbm, cindex_t dim)
 {
     assert(pdbm && dim);
     return pdbm_rates(pdbm);
 }
 
-bool pdbm_constrainToFacet(PDBM& pdbm, cindex_t dim, cindex_t i, cindex_t j)
+bool pdbm_constrainToFacet(PDBMPtr& pdbm, cindex_t dim, cindex_t i, cindex_t j)
 {
     auto dbm = pdbm_matrix(pdbm, dim);
     auto bound = -dbm.bound(i, j);
     return pdbm_constrain1(pdbm, dim, j, i, dbm_bound2raw(bound, dbm_WEAK));
 }
 
-void pdbm_print(FILE* f, const PDBM pdbm, cindex_t dim)
+void pdbm_print(FILE* f, const PDBMPtr& pdbm, cindex_t dim)
 {
     int32_t infimum = pdbm_getInfimum(pdbm, dim);
     dbm_print(f, pdbm_matrix(pdbm, dim), dim);
@@ -1250,7 +1233,7 @@ void pdbm_print(FILE* f, const PDBM pdbm, cindex_t dim)
     fprintf(f, "Offset: %d Infimum: %d\n", pdbm->cost, infimum);
 }
 
-std::ostream& pdbm_print(std::ostream& os, const PDBM pdbm, cindex_t dim)
+std::ostream& pdbm_print(std::ostream& os, const PDBMPtr& pdbm, cindex_t dim)
 {
     int32_t infimum = pdbm_getInfimum(pdbm, dim);
     dbm_cppPrint(os, pdbm_matrix(pdbm, dim));
@@ -1262,7 +1245,7 @@ std::ostream& pdbm_print(std::ostream& os, const PDBM pdbm, cindex_t dim)
     return os;
 }
 
-void pdbm_freeUp(PDBM& pdbm, cindex_t dim, cindex_t index)
+void pdbm_freeUp(PDBMPtr& pdbm, cindex_t dim, cindex_t index)
 {
     assert(pdbm_rates(pdbm)[index] >= 0);
 
@@ -1270,7 +1253,7 @@ void pdbm_freeUp(PDBM& pdbm, cindex_t dim, cindex_t index)
     dbm_freeUp(pdbm_matrix(pdbm, dim), dim, index);
 }
 
-void pdbm_freeDown(PDBM& pdbm, cindex_t dim, cindex_t index)
+void pdbm_freeDown(PDBMPtr& pdbm, cindex_t dim, cindex_t index)
 {
     assert(pdbm_rates(pdbm)[index] <= 0);
 
@@ -1289,7 +1272,7 @@ void pdbm_freeDown(PDBM& pdbm, cindex_t dim, cindex_t index)
     dbm_freeDown(dbm, dim, index);
 }
 
-void pdbm_normalise(PDBM pdbm, cindex_t dim)
+void pdbm_normalise(PDBMPtr& pdbm, cindex_t dim)
 {
     int32_t* rates = pdbm_rates(pdbm);
     std::vector<cindex_t> next(dim);
@@ -1315,7 +1298,7 @@ void pdbm_normalise(PDBM pdbm, cindex_t dim)
     }
 }
 
-bool pdbm_hasNormalForm(PDBM pdbm, cindex_t dim)
+bool pdbm_hasNormalForm(PDBMPtr& pdbm, cindex_t dim)
 {
     int32_t* rates = pdbm_rates(pdbm);
     std::vector<cindex_t> next(dim);

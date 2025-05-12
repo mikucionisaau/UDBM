@@ -51,7 +51,7 @@ else(xxHash_FOUND)
     USES_TERMINAL_BUILD ON
     USES_TERMINAL_INSTALL ON
     )
-  FetchContent_GetProperties(xxHash)
+  FetchContent_MakeAvailable(xxHash)
   if (xxhash_POPULATED)
     message(STATUS "Found populated xxHash: ${xxhash_SOURCE_DIR}")
   else (xxhash_POPULATED)

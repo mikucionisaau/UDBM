@@ -1,4 +1,8 @@
-find_package(UUtils 2.0.5 COMPONENTS base hash debug QUIET)
+set(BOOST_INCLUDE_LIBRARIES math)
+include(cmake/boost.cmake)
+include(cmake/xxhash.cmake)
+
+find_package(UUtils 2.0.7 COMPONENTS base hash debug QUIET)
 
 if (UUtils_FOUND)
   message(STATUS "Found UUtils: ${UUtils_DIR}")
@@ -13,7 +17,7 @@ else(UUtils_FOUND)
     FetchContent_Declare(
             UUtils
             GIT_REPOSITORY https://github.com/UPPAALModelChecker/UUtils.git
-            GIT_TAG v2.0.5
+            GIT_TAG v2.0.7
             GIT_SHALLOW TRUE # get only the last commit version
             GIT_PROGRESS TRUE # show progress of download
             # FIND_PACKAGE_ARGS NAMES doctest
@@ -22,7 +26,7 @@ else(UUtils_FOUND)
             USES_TERMINAL_BUILD ON
             USES_TERMINAL_INSTALL ON
     )
-    FetchContent_GetProperties(UUtils)
+    FetchContent_MakeAvailable(UUtils)
     if (uutils_POPULATED)
         message(STATUS "Found populated UUtils: ${uutils_SOURCE_DIR}")
     else (uutils_POPULATED)

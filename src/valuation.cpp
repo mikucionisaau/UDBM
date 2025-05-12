@@ -11,6 +11,7 @@
 
 #include <iomanip>
 #include <sstream>
+#include <limits>
 
 namespace dbm
 {

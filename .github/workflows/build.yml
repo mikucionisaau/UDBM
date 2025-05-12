@@ -43,24 +43,24 @@ jobs:
           WINEPATH=$($PWD/winepath-for ${{ matrix.target }})
           echo "WINEPATH=$WINEPATH" >> $GITHUB_ENV
           echo "WINARCH=win64" >> $GITHUB_ENV
-      - name: Build without getlibs
-        run: |
-          BUILD="build-${{ matrix.target }}-${CMAKE_BUILD_TYPE,,}"
-          cmake -S . -B "$BUILD" -DUDBM_STATIC=$STATIC -DASAN=${{ matrix.sanitizers }} -DUBSAN=${{ matrix.sanitizers }} -DENABLE_DBM_NEW=${{ matrix.newdbm }}
-          cmake --build "$BUILD" --config $CMAKE_BUILD_TYPE
-          (cd "$BUILD" ; ctest -C $CMAKE_BUILD_TYPE)
+#      - name: Build without getlibs
+#        run: |
+#          BUILD="build-${{ matrix.target }}-${CMAKE_BUILD_TYPE,,}"
+#          cmake -B "$BUILD" -DUDBM_STATIC=$STATIC -DASAN=${{ matrix.sanitizers }} -DUBSAN=${{ matrix.sanitizers }} -DENABLE_DBM_NEW=${{ matrix.newdbm }}
+#          cmake --build "$BUILD" --config $CMAKE_BUILD_TYPE
+#          ctest --build "$BUILD" -C $CMAKE_BUILD_TYPE)
       - name: Getlibs
         run: ./getlibs.sh ${{ matrix.target }}
       - name: Build with getlibs
         run: |
-          BUILD="build-${{ matrix.target }}-libs-${CMAKE_BUILD_TYPE,,}"          
-          cmake -S . -B "$BUILD" -DCMAKE_PREFIX_PATH="${{ github.workspace }}/local/${{ matrix.target }}" -DUDBM_STATIC=$STATIC -DASAN=${{ matrix.sanitizers }} -DUBSAN=${{ matrix.sanitizers }} -DENABLE_DBM_NEW=${{ matrix.newdbm }}
+          BUILD="build-${{ matrix.target }}-libs-${CMAKE_BUILD_TYPE,,}"
+          cmake -B "$BUILD" -DCMAKE_PREFIX_PATH="${{ github.workspace }}/local/${{ matrix.target }}" -DUDBM_STATIC=$STATIC -DASAN=${{ matrix.sanitizers }} -DUBSAN=${{ matrix.sanitizers }} -DENABLE_DBM_NEW=${{ matrix.newdbm }}
           cmake --build "$BUILD" --config $CMAKE_BUILD_TYPE
-          (cd "$BUILD" ; ctest -C $CMAKE_BUILD_TYPE)
-  build-macos:
+          ctest --test-dir "$BUILD" -C $CMAKE_BUILD_TYPE
+  build-darwin:
     runs-on: macos-latest
     env:
-      CMAKE_TOOLCHAIN_FILE: ${{ github.workspace }}/cmake/toolchain/x86_64-darwin.cmake
+      CMAKE_TOOLCHAIN_FILE: ${{ github.workspace }}/cmake/toolchain/darwin.cmake
       CMAKE_BUILD_TYPE: Release
       CTEST_OUTPUT_ON_FAILURE: 1
       CTEST_TEST_TIMEOUT: 20
@@ -71,20 +71,20 @@ jobs:
         sanitizers: [ON, OFF]
     steps:
       - uses: actions/checkout@v3
-      - name: Build without getlibs
-        run: |
-          BUILD=build-x86_64-darwin-$CMAKE_BUILD_TYPE
-          cmake -S . -B "$BUILD" -DASAN=${{ matrix.sanitizers }} -DUBSAN=${{ matrix.sanitizers }}
-          cmake --build "$BUILD" --config $CMAKE_BUILD_TYPE
-          (cd "$BUILD" ; ctest -C $CMAKE_BUILD_TYPE)
+#      - name: Build without getlibs
+#        run: |
+#          BUILD=build-darwin-$CMAKE_BUILD_TYPE
+#          cmake -B "$BUILD" -DASAN=${{ matrix.sanitizers }} -DUBSAN=${{ matrix.sanitizers }}
+#          cmake --build "$BUILD" --config $CMAKE_BUILD_TYPE
+#          ctest --test-dir "$BUILD" -C $CMAKE_BUILD_TYPE
       - name: Get dependencies
-        run: CMAKE_BUILD_TYPE=Release ./getlibs.sh x86_64-darwin
+        run: CMAKE_BUILD_TYPE=Release ./getlibs.sh darwin
       - name: Build with getlibs
         run: |
-          BUILD=build-x86_64-darwin-libs-$CMAKE_BUILD_TYPE
-          cmake -S . -B "$BUILD" -DCMAKE_PREFIX_PATH="${{ github.workspace }}/local/x86_64-darwin" -DASAN=${{ matrix.sanitizers }} -DUBSAN=${{ matrix.sanitizers }}
+          BUILD=build-darwin-libs-$CMAKE_BUILD_TYPE
+          cmake -B "$BUILD" -DCMAKE_PREFIX_PATH="${{ github.workspace }}/local/darwin" -DASAN=${{ matrix.sanitizers }} -DUBSAN=${{ matrix.sanitizers }}
           cmake --build "$BUILD" --config $CMAKE_BUILD_TYPE
-          (cd "$BUILD" ; ctest -C $CMAKE_BUILD_TYPE)
+          ctest --test-dir "$BUILD" -C $CMAKE_BUILD_TYPE
   build-windows:
     runs-on: windows-latest
     env:
@@ -95,13 +95,12 @@ jobs:
       CTEST_TEST_TIMEOUT: 20
     steps:
       - uses: actions/checkout@v3
-      - name: Build without getlibs
-        run: |
-          $env:BUILD='build-x86_64-windows'
-          cmake -S . -B $env:BUILD
-          cmake --build $env:BUILD --config $env:CMAKE_BUILD_TYPE
-          cd $env:BUILD
-          ctest -C $env:CMAKE_BUILD_TYPE
+#      - name: Build without getlibs
+#        run: |
+#          $env:BUILD='build-x86_64-windows'
+#          cmake -B $env:BUILD
+#          cmake --build $env:BUILD --config $env:CMAKE_BUILD_TYPE
+#          ctest --test-dir $env:BUILD -C $env:CMAKE_BUILD_TYPE
       - name: Get dependencies
         run: |
           vcpkg integrate install
@@ -110,7 +109,6 @@ jobs:
       - name: Build with getlibs
         run: |
           $env:BUILD='build-x86_64-windows-libs'
-          cmake -S . -B $env:BUILD -DCMAKE_PREFIX_PATH="${{ github.workspace }}/local/x86_64-w64-mingw32"
+          cmake -B $env:BUILD -DCMAKE_PREFIX_PATH="${{ github.workspace }}/local/x86_64-w64-mingw32"
           cmake --build $env:BUILD --config $env:CMAKE_BUILD_TYPE
-          cd $env:BUILD
-          ctest -C $env:CMAKE_BUILD_TYPE
+          ctest --test-dir $env:BUILD -C $env:CMAKE_BUILD_TYPE

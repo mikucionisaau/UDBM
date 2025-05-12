@@ -15,57 +15,15 @@
 
 namespace dbm
 {
-    std::allocator<pfed_t::pfed_s> pfed_t::alloc;
-
-    void pfed_t::decRef()
-    {
-        if (--(ptr->count) == 0) {
-            alloc.destroy(ptr);
-            alloc.deallocate(ptr, 1);
-        }
-    }
-
     void pfed_t::cow()
     {
-        assert(ptr->count > 1);
-
-        ptr->count--;
-        pfed_s* old = ptr;
-        ptr = alloc.allocate(1);
-        alloc.construct(ptr, pfed_s());
-        ptr->zones = old->zones;
-        ptr->dim = old->dim;
-        ptr->count = 1;
-    }
-
-    pfed_t::pfed_t()
-    {
-        ptr = alloc.allocate(1);
-        alloc.construct(ptr, pfed_s());
-        ptr->dim = 0;
-        ptr->count = 1;
-    }
-
-    pfed_t::pfed_t(cindex_t dim)
-    {
-        ptr = alloc.allocate(1);
-        alloc.construct(ptr, pfed_s());
-        ptr->dim = dim;
-        ptr->count = 1;
-    }
-
-    pfed_t::pfed_t(const PDBM pdbm, cindex_t dim)
-    {
-        ptr = alloc.allocate(1);
-        alloc.construct(ptr, pfed_s());
-        ptr->dim = dim;
-        ptr->count = 1;
-        add(pdbm, dim);
+        assert(ptr.use_count() > 1);
+        ptr = std::make_shared<pfed_s>(*ptr);
     }
 
     pfed_t::iterator pfed_t::erase(iterator i)
     {
-        assert(ptr->count <= 1);
+        assert(ptr.use_count() <= 1);
         return ptr->zones.erase(i);
     }
 
@@ -79,14 +37,14 @@ namespace dbm
     bool pfed_t::constrain(cindex_t i, cindex_t j, raw_t constraint)
     {
         erase_if_not(
-            [dim = ptr->dim, i, j, constraint](PDBM& pdbm) { return pdbm_constrain1(pdbm, dim, i, j, constraint); });
+            [dim = ptr->dim, i, j, constraint](PDBMPtr& pdbm) { return pdbm_constrain1(pdbm, dim, i, j, constraint); });
         return !isEmpty();
     }
 
     bool pfed_t::constrain(const constraint_t* constraints, size_t n)
     {
         erase_if_not(
-            [dim = ptr->dim, constraints, n](PDBM& pdbm) { return pdbm_constrainN(pdbm, dim, constraints, n); });
+            [dim = ptr->dim, constraints, n](PDBMPtr& pdbm) { return pdbm_constrainN(pdbm, dim, constraints, n); });
         return !isEmpty();
     }
 
@@ -94,7 +52,7 @@ namespace dbm
 
     int32_t pfed_t::getInfimum() const
     {
-        return std::accumulate(cbegin(), cend(), INT_MAX, [dim = ptr->dim](const int32_t a, const PDBM pdbm) {
+        return std::accumulate(cbegin(), cend(), INT_MAX, [dim = ptr->dim](const int32_t a, const PDBMCPtr& pdbm) {
             return min(a, pdbm_getInfimum(pdbm, dim));
         });
     }
@@ -110,7 +68,7 @@ namespace dbm
             int32_t inf = pdbm_getInfimumValuation(zone, dim, copy.data(), free);
             if (inf < infimum) {
                 infimum = inf;
-                std::copy(copy.begin(), copy.end(), valuation.begin_mutable());
+                std::copy(copy.begin(), copy.end(), valuation.begin());
             }
         }
         return infimum;
@@ -377,23 +335,23 @@ namespace dbm
             pdbm_freeClock(zone, ptr->dim, clock);
     }
 
-    void pfed_t::add(const PDBM pdbm, cindex_t dim)
+    void pfed_t::add(PDBMPtr pdbm, cindex_t dim)
     {
         assert(dim == ptr->dim);
         prepare();
-        ptr->zones.push_front(pdbm_t(pdbm, dim));
+        ptr->zones.emplace_front(std::move(pdbm), dim);
     }
 
     void pfed_t::setZero()
     {
-        PDBM pdbm = nullptr;
+        auto pdbm = PDBMPtr{};
         pdbm_zero(pdbm, ptr->dim);
         *this = pfed_t(pdbm, ptr->dim);
     }
 
     void pfed_t::setInit()
     {
-        PDBM pdbm = nullptr;
+        auto pdbm = PDBMPtr{};
         pdbm_init(pdbm, ptr->dim);
         *this = pfed_t(pdbm, ptr->dim);
     }
@@ -415,9 +373,7 @@ namespace dbm
     pfed_t& pfed_t::operator=(const pfed_t& fed)
     {
         if (ptr != fed.ptr) {
-            decRef();
             ptr = fed.ptr;
-            incRef();
         }
         return *this;
     }
@@ -431,7 +387,7 @@ namespace dbm
         return *this;
     }
 
-    pfed_t& pfed_t::operator|=(const PDBM pdbm)
+    pfed_t& pfed_t::operator|=(const PDBMPtr& pdbm)
     {
         // REVISIT: Eliminate included zones.
         add(pdbm, ptr->dim);
