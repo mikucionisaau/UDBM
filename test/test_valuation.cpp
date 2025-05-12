@@ -33,8 +33,8 @@ static void test(size_t size)
     (dv += 3.1) -= 2;
 
     if (size > 0) {
-        CHECK(iv[0] == 0.0);
-        CHECK(dv[0] == 0.0);
+        CHECK(iv[0u] == 0.0);
+        CHECK(dv[0u] == 0.0);
     }
 
     for (size_t i = 1; i < size; ++i) {
@@ -56,23 +56,23 @@ TEST_CASE("Valuation assignment")
     auto v1 = dbm::valuation_int(3, 2);
     v1 += 1;
     REQUIRE(v1.size() == 5);
-    CHECK(v1[0] == 0);
-    CHECK(v1[1] == 1);
-    CHECK(v1[2] == 1);
-    CHECK(v1[3] == 1);
-    CHECK(v1[4] == 1);
+    CHECK(v1[0u] == 0);
+    CHECK(v1[1u] == 1);
+    CHECK(v1[2u] == 1);
+    CHECK(v1[3u] == 1);
+    CHECK(v1[4u] == 1);
     auto v2 = dbm::valuation_int(3, 1);
     v2 += 2;
     REQUIRE(v2.size() == 4);
-    CHECK(v2[0] == 0);
-    CHECK(v2[1] == 2);
-    CHECK(v2[2] == 2);
-    CHECK(v2[3] == 2);
+    CHECK(v2[0u] == 0);
+    CHECK(v2[1u] == 2);
+    CHECK(v2[2u] == 2);
+    CHECK(v2[3u] == 2);
     v1 = v2;
     REQUIRE(v1.size() == 5);
-    CHECK(v1[0] == 0);
-    CHECK(v1[1] == 2);
-    CHECK(v1[2] == 2);
-    CHECK(v1[3] == 2);
-    CHECK(v1[4] == 0);
+    CHECK(v1[0u] == 0);
+    CHECK(v1[1u] == 2);
+    CHECK(v1[2u] == 2);
+    CHECK(v1[3u] == 2);
+    CHECK(v1[4u] == 0);
 }

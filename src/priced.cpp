@@ -55,7 +55,7 @@ static auto& pdbm_cache(const PDBMPtr& pdbm) { return pdbm->infimum; }
  * @param  j    is the index of a clock
  * @return True if and only if \a i and \a j form a zero cycle in \a pdbm.
  */
-static bool pdbm_areOnZeroCycle(const PDBM_ptr& pdbm, cindex_t dim, cindex_t i, cindex_t j)
+static bool pdbm_areOnZeroCycle(const PDBMPtr& pdbm, cindex_t dim, cindex_t i, cindex_t j)
 {
     assert(pdbm && dim && i < dim && j < dim && i != j);
 

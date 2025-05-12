@@ -68,7 +68,7 @@ namespace dbm
             int32_t inf = pdbm_getInfimumValuation(zone, dim, copy.data(), free);
             if (inf < infimum) {
                 infimum = inf;
-                std::copy(copy.begin(), copy.end(), valuation.begin_mutable());
+                std::copy(copy.begin(), copy.end(), valuation.begin());
             }
         }
         return infimum;

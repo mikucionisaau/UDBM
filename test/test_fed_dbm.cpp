@@ -299,7 +299,7 @@ static void test(const cindex_t dim)
 
         // constrain
         CHECK(a == dbm.get());
-        for (k = 7; k > 0 && !dbm_generatePoint(pt.get_mutable().data(), dbm, dim); --k)
+        for (k = 7; k > 0 && !dbm_generatePoint(pt.values().data(), dbm, dim); --k)
             ;
         if (k > 0) {
             bool stop = (rand() & 1) != 0;
