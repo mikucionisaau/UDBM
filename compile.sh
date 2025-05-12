@@ -9,6 +9,13 @@ else
     targets="$@"
 fi
 
+function show_cmake_vars() {
+    for var in CMAKE_TOOLCHAIN_FILE CMAKE_BUILD_TYPE CMAKE_PREFIX_PATH CMAKE_INSTALL_PREFIX \
+               CMAKE_GENERATOR CMAKE_BUILD_PARALLEL_LEVEL; do
+        echo "  $var=${!var:- (unset)}"
+    done
+}
+
 for target in $targets ; do
     unset BUILD_EXTRA
     unset CMAKE_BUILD_TYPE
@@ -27,9 +34,11 @@ for target in $targets ; do
             ;;
         win64*|x86_64-w64-mingw32*)
             PLATFORM=x86_64-w64-mingw32
+            export WINEPATH=$("$PROJECT_DIR"/winepath-for $PLATFORM)
             ;;
         win32*|i686-w64-mingw32*)
             PLATFORM=i686-w64-mingw32
+            export WINEPATH=$("$PROJECT_DIR"/winepath-for $PLATFORM)
             ;;
         darwin-brew-gcc14*)
             PLATFORM=darwin-brew-gcc14
@@ -91,10 +100,8 @@ for target in $targets ; do
             echo "Unrecognized build type: $target, assuming $CMAKE_BUILD_TYPE"
     esac
     echo "Building $target${BUILD_EXTRA:+ with$BUILD_EXTRA} into $BUILD_DIR"
-    echo "  CMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE"
-    echo "  CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH"
-    echo "  CMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE"
+    show_cmake_vars
     cmake -S "$PROJECT_DIR" -B "$BUILD_DIR" -DUDBM_CLANG_TIDY=OFF $BUILD_EXTRA
     cmake --build "$BUILD_DIR" --config $CMAKE_BUILD_TYPE
-    (cd "$BUILD_DIR" ; ctest -C $CMAKE_BUILD_TYPE --output-on-failure)
+    ctest --test-dir "$BUILD_DIR" -C $CMAKE_BUILD_TYPE --output-on-failure
 done
